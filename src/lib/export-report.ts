@@ -44,73 +44,137 @@ function getBillImageUrl(billId: string): string {
   return `${getBaseUrl()}/api/bills/image/${billId}`;
 }
 
-// ===== EXPORT AS CSV (opens in Excel) =====
+// ===== EXPORT AS EXCEL (HTML table with .xls — supports clickable hyperlinks) =====
 export function exportToCSV(data: ReportData) {
-  const headers = [
-    "Date Received",
-    "Category",
-    "Vendor",
-    "Amount",
-    "Status",
-    "Date Paid",
-    "Note",
-    "Bill Image Link",
-  ];
+  const billsWithImages = data.bills.filter((b) => b.imageUrl).length;
 
-  const rows = data.bills.map((bill) => [
-    formatDate(bill.receivedDate),
-    bill.category?.name || "Uncategorized",
-    bill.vendor?.name || "No vendor",
-    bill.amount,
-    bill.status.toUpperCase(),
-    bill.paidDate ? formatDate(bill.paidDate) : "",
-    `"${(bill.note || "").replace(/"/g, '""').replace(/\n/g, " ")}"`,
-    bill.imageUrl && bill.id ? getBillImageUrl(bill.id) : "",
-  ]);
+  const html = `
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="utf-8">
+  <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+  <x:Name>Bills Report</x:Name>
+  <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+  </x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+  <style>
+    td, th { padding: 6px 10px; vertical-align: top; }
+    th { background: #e5651f; color: white; font-weight: 600; font-size: 12px; }
+    .amount { text-align: right; font-family: monospace; }
+    .paid { color: #16a34a; font-weight: 600; }
+    .unpaid { color: #d97706; font-weight: 600; }
+    .section { background: #f5f0eb; font-weight: 700; font-size: 13px; }
+    .summary-label { font-weight: 600; background: #fafafa; }
+    a { color: #e5651f; }
+  </style>
+</head>
+<body>
+  <table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse; border-color:#e5e5e5;">
+    <!-- Title -->
+    <tr><td colspan="8" style="font-size:16px; font-weight:700; color:#e5651f; border:none; padding:12px 10px 4px;">${data.title}</td></tr>
+    <tr><td colspan="8" style="font-size:11px; color:#888; border:none; padding:2px 10px 12px;">${data.dateRange || "All Time"} • Generated ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</td></tr>
 
-  // Summary section
-  rows.push([]);
-  rows.push(["", "", "", "", "", "", "", ""]);
-  rows.push(["SUMMARY", "", "", "", "", "", "", ""]);
-  rows.push(["Total Amount", "", "", data.totalAmount.toString(), "", "", "", ""]);
-  rows.push(["Total Paid", "", "", data.totalPaid.toString(), "", "", "", ""]);
-  rows.push(["Total Unpaid", "", "", data.totalUnpaid.toString(), "", "", "", ""]);
-  rows.push([
-    "Bills with Images",
-    "",
-    "",
-    data.bills.filter((b) => b.imageUrl).length.toString(),
-    `out of ${data.bills.length}`,
-    "",
-    "",
-    "",
-  ]);
-  rows.push([]);
-  rows.push(["CATEGORY BREAKDOWN", "", "", "", "", "", "", ""]);
-  rows.push(["Category", "Total", "Paid", "Unpaid", "", "", "", ""]);
-  data.categoryBreakdown.forEach((cat) => {
-    rows.push([
-      cat.name,
-      cat.total.toString(),
-      cat.paid.toString(),
-      cat.unpaid.toString(),
-      "",
-      "",
-      "",
-      "",
-    ]);
-  });
+    <!-- Headers -->
+    <tr>
+      <th>Date Received</th>
+      <th>Category</th>
+      <th>Vendor</th>
+      <th>Amount</th>
+      <th>Status</th>
+      <th>Date Paid</th>
+      <th>Note</th>
+      <th>Bill Image</th>
+    </tr>
 
-  const csvContent = [
-    headers.join(","),
-    ...rows.map((row) => row.join(",")),
-  ].join("\n");
+    <!-- Bill Rows -->
+    ${data.bills
+      .map((bill) => {
+        const imageCell =
+          bill.imageUrl && bill.id
+            ? `<a href="${getBillImageUrl(bill.id)}" target="_blank">View Image</a>`
+            : "—";
+        const statusClass = bill.status === "paid" ? "paid" : "unpaid";
 
-  downloadFile(
-    csvContent,
-    `${data.title.replace(/\s+/g, "_")}.csv`,
-    "text/csv"
-  );
+        return `
+    <tr>
+      <td>${formatDate(bill.receivedDate)}</td>
+      <td>${bill.category?.name || "Uncategorized"}</td>
+      <td>${bill.vendor?.name || "No vendor"}</td>
+      <td class="amount">${bill.amount}</td>
+      <td class="${statusClass}">${bill.status.toUpperCase()}</td>
+      <td>${bill.paidDate ? formatDate(bill.paidDate) : "—"}</td>
+      <td>${(bill.note || "—").replace(/\n/g, " ")}</td>
+      <td>${imageCell}</td>
+    </tr>`;
+      })
+      .join("")}
+
+    <!-- Spacer -->
+    <tr><td colspan="8" style="border:none;">&nbsp;</td></tr>
+
+    <!-- Summary -->
+    <tr class="section"><td colspan="8">SUMMARY</td></tr>
+    <tr>
+      <td class="summary-label">Total Amount</td>
+      <td class="amount" colspan="2">${formatCurrency(data.totalAmount)}</td>
+      <td class="summary-label">Total Bills</td>
+      <td colspan="4">${data.bills.length}</td>
+    </tr>
+    <tr>
+      <td class="summary-label">Total Paid</td>
+      <td class="amount paid" colspan="2">${formatCurrency(data.totalPaid)}</td>
+      <td class="summary-label">Bills with Images</td>
+      <td colspan="4">${billsWithImages} of ${data.bills.length}</td>
+    </tr>
+    <tr>
+      <td class="summary-label">Total Unpaid</td>
+      <td class="amount unpaid" colspan="2">${formatCurrency(data.totalUnpaid)}</td>
+      <td colspan="5"></td>
+    </tr>
+
+    ${
+      data.categoryBreakdown.length > 0
+        ? `
+    <!-- Spacer -->
+    <tr><td colspan="8" style="border:none;">&nbsp;</td></tr>
+
+    <!-- Category Breakdown -->
+    <tr class="section"><td colspan="8">CATEGORY BREAKDOWN</td></tr>
+    <tr>
+      <th>Category</th>
+      <th class="amount">Total</th>
+      <th class="amount">Paid</th>
+      <th class="amount">Unpaid</th>
+      <th colspan="4"></th>
+    </tr>
+    ${data.categoryBreakdown
+      .map(
+        (cat) => `
+    <tr>
+      <td>${cat.name}</td>
+      <td class="amount">${formatCurrency(cat.total)}</td>
+      <td class="amount paid">${formatCurrency(cat.paid)}</td>
+      <td class="amount unpaid">${formatCurrency(cat.unpaid)}</td>
+      <td colspan="4"></td>
+    </tr>`
+      )
+      .join("")}
+    `
+        : ""
+    }
+  </table>
+</body>
+</html>`;
+
+  // Download as .xls (Excel opens HTML tables natively with hyperlinks working)
+  const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${data.title.replace(/\s+/g, "_")}.xls`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ===== EXPORT AS PRINTABLE PDF (via browser print) =====
@@ -144,14 +208,13 @@ export function exportToPrintablePDF(data: ReportData) {
     .category-table th { background: #e5651f; color: white; }
     .total-row td { font-weight: 700; border-top: 2px solid #333; background: #f8f8f8; }
     .footer { text-align: center; margin-top: 24px; padding-top: 12px; border-top: 1px solid #eee; color: #999; font-size: 10px; }
-    .img-link { color: #e5651f; text-decoration: none; font-size: 10px; font-weight: 500; }
-    .img-link:hover { text-decoration: underline; }
+    .img-link { color: #e5651f; text-decoration: none; font-size: 10px; font-weight: 600; border: 1px solid #e5651f; padding: 2px 6px; border-radius: 4px; }
+    .img-link:hover { background: #e5651f; color: white; }
     .no-img { color: #ccc; font-size: 10px; }
     @media print {
       body { padding: 12px; }
       .summary-card { break-inside: avoid; }
-      .img-link { color: #e5651f !important; }
-      a { color: #e5651f !important; }
+      .img-link { color: #e5651f !important; border-color: #e5651f !important; }
     }
   </style>
 </head>
@@ -234,7 +297,7 @@ export function exportToPrintablePDF(data: ReportData) {
         .map((bill) => {
           const imageLink =
             bill.imageUrl && bill.id
-              ? `<a href="${getBillImageUrl(bill.id)}" target="_blank" class="img-link">📄 View</a>`
+              ? `<a href="${getBillImageUrl(bill.id)}" target="_blank" class="img-link">View</a>`
               : `<span class="no-img">—</span>`;
 
           return `
@@ -254,13 +317,11 @@ export function exportToPrintablePDF(data: ReportData) {
   </table>
 
   <div class="footer">
-    MithaiBills — Sweet Shop Bill Manager • This report was auto-generated<br>
-    <span style="font-size:9px; color:#bbb;">Image links point to: ${getBaseUrl()}/api/bills/image/[id]</span>
+    MithaiBills — Sweet Shop Bill Manager • Auto-generated report
   </div>
 </body>
 </html>`;
 
-  // Open in new window and trigger print
   const printWindow = window.open("", "_blank");
   if (printWindow) {
     printWindow.document.write(html);
@@ -272,17 +333,4 @@ export function exportToPrintablePDF(data: ReportData) {
       printWindow.print();
     }, 500);
   }
-}
-
-// ===== HELPER =====
-function downloadFile(content: string, filename: string, mimeType: string) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
