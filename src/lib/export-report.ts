@@ -42,7 +42,6 @@ function getBillImageUrl(billId: string): string {
   return `${getBaseUrl()}/api/bills/image/${billId}`;
 }
 
-// Escape a value for CSV
 function csvEscape(value: string): string {
   if (
     value.includes(",") ||
@@ -55,7 +54,7 @@ function csvEscape(value: string): string {
   return value;
 }
 
-// ===== EXPORT AS CSV (proper .csv file) =====
+// ===== EXPORT AS CSV =====
 export function exportToCSV(data: ReportData) {
   const headers = [
     "Date Received",
@@ -77,13 +76,12 @@ export function exportToCSV(data: ReportData) {
       bill.status.toUpperCase(),
       bill.paidDate ? formatDate(bill.paidDate) : "",
       bill.note || "",
-      bill.imageUrl && bill.id ? getBillImageUrl(bill.id) : "",
+      bill.imageUrl && bill.id ? getBillImageUrl(bill.id) : "No image",
     ]
       .map(csvEscape)
       .join(",")
   );
 
-  // Summary
   const summaryRows = [
     "",
     "SUMMARY,,,,,,",
@@ -94,7 +92,6 @@ export function exportToCSV(data: ReportData) {
     `Bills with Images,,,${data.bills.filter((b) => b.imageUrl).length},,,,`,
   ];
 
-  // Category breakdown
   const categoryRows: string[] = [""];
   if (data.categoryBreakdown.length > 0) {
     categoryRows.push("CATEGORY BREAKDOWN,,,,,,");
@@ -108,7 +105,6 @@ export function exportToCSV(data: ReportData) {
 
   const csvContent = [headers.join(","), ...rows, ...summaryRows, ...categoryRows].join("\n");
 
-  // Download as .csv
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -120,10 +116,8 @@ export function exportToCSV(data: ReportData) {
   URL.revokeObjectURL(url);
 }
 
-// ===== EXPORT AS PDF (with embedded image thumbnails) =====
+// ===== EXPORT AS PDF (clickable links only, no thumbnails) =====
 export function exportToPrintablePDF(data: ReportData) {
-  const billsHaveImages = data.bills.some((b) => b.imageUrl);
-
   const html = `
 <!DOCTYPE html>
 <html>
@@ -152,13 +146,12 @@ export function exportToPrintablePDF(data: ReportData) {
     .category-table th { background: #e5651f; color: white; }
     .total-row td { font-weight: 700; border-top: 2px solid #333; background: #f8f8f8; }
     .footer { text-align: center; margin-top: 24px; padding-top: 12px; border-top: 1px solid #eee; color: #999; font-size: 10px; }
-    .bill-thumb { width: 60px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #e5e5e5; }
+    .img-link { color: #e5651f; text-decoration: none; font-weight: 600; font-size: 10px; border: 1px solid #e5651f; padding: 2px 8px; border-radius: 4px; }
+    .img-link:hover { background: #e5651f; color: white; }
     .no-img { color: #ccc; font-size: 10px; }
-    .img-link { color: #e5651f; text-decoration: none; font-size: 9px; display: block; margin-top: 2px; }
     @media print {
       body { padding: 12px; }
-      .summary-card { break-inside: avoid; }
-      .bill-thumb { width: 50px; height: 38px; }
+      .img-link { color: #e5651f !important; border-color: #e5651f !important; }
     }
   </style>
 </head>
@@ -218,7 +211,6 @@ export function exportToPrintablePDF(data: ReportData) {
   <table>
     <thead>
       <tr>
-        ${billsHaveImages ? '<th>Image</th>' : ''}
         <th>Date</th>
         <th>Category</th>
         <th>Vendor</th>
@@ -226,32 +218,17 @@ export function exportToPrintablePDF(data: ReportData) {
         <th>Status</th>
         <th>Paid On</th>
         <th>Note</th>
+        <th>Image</th>
       </tr>
     </thead>
     <tbody>
       ${data.bills.map((bill) => {
-        // Embed actual image as thumbnail if available
-        let imageCell = "";
-        if (billsHaveImages) {
-          if (bill.imageUrl) {
-            // base64 images embed directly, URL images use the API route
-            const imgSrc = bill.imageUrl.startsWith("data:")
-              ? bill.imageUrl
-              : bill.id
-              ? getBillImageUrl(bill.id)
-              : bill.imageUrl;
-            imageCell = `<td>
-              <img src="${imgSrc}" class="bill-thumb" alt="Bill" />
-              ${bill.id ? `<a href="${getBillImageUrl(bill.id)}" target="_blank" class="img-link">Open full</a>` : ""}
-            </td>`;
-          } else {
-            imageCell = `<td><span class="no-img">No image</span></td>`;
-          }
-        }
+        const imageCell = bill.imageUrl && bill.id
+          ? `<a href="${getBillImageUrl(bill.id)}" target="_blank" class="img-link">View</a>`
+          : `<span class="no-img">—</span>`;
 
         return `
       <tr>
-        ${imageCell}
         <td>${formatDate(bill.receivedDate)}</td>
         <td>${bill.category?.name || "—"}</td>
         <td>${bill.vendor?.name || "—"}</td>
@@ -259,6 +236,7 @@ export function exportToPrintablePDF(data: ReportData) {
         <td class="${bill.status === "paid" ? "status-paid" : "status-unpaid"}">${bill.status.toUpperCase()}</td>
         <td>${bill.paidDate ? formatDate(bill.paidDate) : "—"}</td>
         <td>${bill.note || "—"}</td>
+        <td>${imageCell}</td>
       </tr>`;
       }).join("")}
     </tbody>
