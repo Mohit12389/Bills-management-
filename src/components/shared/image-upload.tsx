@@ -19,7 +19,7 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
 
   const handleFileSelect = useCallback(
     async (file: File) => {
-      if (!file.type.startsWith("image/")) {
+      if (!file.type.startsWith("image/") && !file.name.match(/\.(heic|heif)$/i)) {
         setError("Please select an image file");
         return;
       }
@@ -31,36 +31,30 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
       try {
         const originalSize = file.size;
 
-        // Multi-pass compression to guarantee small output
-        const compressed = await compressImageSmart(file);
-        const compressedSize = compressed.size;
+        // Compress entirely on client — returns a base64 data URL
+        const dataUrl = await compressToBase64(file);
 
-        const reduction = Math.round(
-          ((originalSize - compressedSize) / originalSize) * 100
-        );
-        setCompressionInfo(
-          `Compressed: ${formatBytes(originalSize)} → ${formatBytes(compressedSize)} (${reduction}% smaller)`
-        );
+        // Check final size (base64 is ~33% larger than binary)
+        const base64Size = Math.round((dataUrl.length * 3) / 4);
 
-        // Create FormData for upload
-        const formData = new FormData();
-        formData.append("file", compressed);
-
-        const response = await fetch("/api/bills/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || "Upload failed");
+        if (base64Size > 800 * 1024) {
+          throw new Error(
+            `Image is still ${formatBytes(base64Size)} after max compression. Please use a smaller or lower-resolution image.`
+          );
         }
 
-        onChange(data.url);
+        const reduction = Math.round(
+          ((originalSize - base64Size) / originalSize) * 100
+        );
+        setCompressionInfo(
+          `${formatBytes(originalSize)} → ${formatBytes(base64Size)} (${reduction}% smaller)`
+        );
+
+        // Pass the base64 data URL directly — no server upload needed!
+        onChange(dataUrl);
       } catch (err: any) {
-        console.error("Upload error:", err);
-        setError(err.message || "Failed to upload image. Please try again.");
+        console.error("Compression error:", err);
+        setError(err.message || "Failed to process image. Please try again.");
         setCompressionInfo(null);
       } finally {
         setIsUploading(false);
@@ -115,7 +109,7 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
           </Button>
         </div>
         {compressionInfo && (
-          <p className="text-[10px] text-emerald-600">{compressionInfo}</p>
+          <p className="text-[10px] text-emerald-600">Compressed: {compressionInfo}</p>
         )}
       </div>
     );
@@ -138,13 +132,9 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
           disabled && "pointer-events-none opacity-50"
         )}
       >
-        {/*
-          NO capture attribute — this lets iOS show the full picker:
-          "Take Photo", "Photo Library", "Browse Files"
-        */}
         <input
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+          accept="image/*"
           onChange={handleInputChange}
           className="absolute inset-0 cursor-pointer opacity-0"
           disabled={disabled || isUploading}
@@ -153,7 +143,7 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
           <>
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-xs text-muted-foreground">
-              Compressing & uploading...
+              Compressing image...
             </p>
             <p className="text-[10px] text-muted-foreground">
               Large photos may take a few seconds
@@ -184,106 +174,107 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
   );
 }
 
-// ===== SMART COMPRESSION =====
-// Handles iPhone 16 (48MP, 10-15MB HEIC) down to <300KB
-// Uses multiple passes with decreasing quality if needed
-async function compressImageSmart(file: File): Promise<File> {
-  const TARGET_SIZE = 300 * 1024; // 300KB target (server allows up to 500KB)
+// =====================================================
+// COMPRESS IMAGE TO BASE64 DATA URL
+// Handles: JPEG, PNG, WebP, HEIC (iPhone)
+// Multi-pass: tries progressively smaller sizes
+// =====================================================
+async function compressToBase64(file: File): Promise<string> {
+  // Load the image into an HTMLImageElement
+  const img = await loadImage(file);
 
-  // First pass: resize to max 1000px and quality 0.6
-  let result = await compressImage(file, 1000, 0.6);
+  // Try multiple passes — progressively more aggressive
+  const passes = [
+    { maxDim: 1000, quality: 0.6 },
+    { maxDim: 800, quality: 0.5 },
+    { maxDim: 600, quality: 0.4 },
+    { maxDim: 400, quality: 0.3 },
+    { maxDim: 300, quality: 0.2 },
+  ];
 
-  // If still too large, try smaller dimensions
-  if (result.size > TARGET_SIZE) {
-    result = await compressImage(file, 700, 0.5);
+  const TARGET = 300 * 1024; // Target: 300KB binary (will be ~400KB as base64)
+
+  for (const pass of passes) {
+    const dataUrl = drawToCanvas(img, pass.maxDim, pass.quality);
+    // Rough estimate of binary size from base64
+    const estimatedBinary = Math.round(((dataUrl.length - 23) * 3) / 4);
+
+    if (estimatedBinary <= TARGET) {
+      return dataUrl;
+    }
   }
 
-  // If STILL too large (huge 48MP source), go even smaller
-  if (result.size > TARGET_SIZE) {
-    result = await compressImage(file, 500, 0.4);
-  }
-
-  // Final resort for extremely large images
-  if (result.size > TARGET_SIZE) {
-    result = await compressImage(file, 400, 0.3);
-  }
-
-  return result;
+  // If nothing worked, return the most compressed version
+  return drawToCanvas(img, 300, 0.2);
 }
 
-// ===== CORE COMPRESSION =====
-async function compressImage(
-  file: File,
-  maxDimension: number,
-  quality: number
-): Promise<File> {
-  return new Promise((resolve) => {
+// Load any image file (including HEIC) into an HTMLImageElement
+function loadImage(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
     const img = new window.Image();
 
     img.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        if (!ctx) {
-          resolve(file);
-          return;
-        }
-
-        let { width, height } = img;
-
-        // Scale down — limit both width and height
-        if (width > height) {
-          if (width > maxDimension) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          }
-        } else {
-          if (height > maxDimension) {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        // White background (in case of transparent PNGs)
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Try JPEG (universally supported, good compression)
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const compressed = new File(
-                [blob],
-                file.name.replace(/\.[^.]+$/, ".jpg"),
-                { type: "image/jpeg", lastModified: Date.now() }
-              );
-              resolve(compressed);
-            } else {
-              resolve(file);
-            }
-          },
-          "image/jpeg",
-          quality
-        );
-      } catch (err) {
-        resolve(file);
-      }
+      // Clean up the object URL
+      URL.revokeObjectURL(img.src);
+      resolve(img);
     };
 
     img.onerror = () => {
-      resolve(file);
+      URL.revokeObjectURL(img.src);
+      // Fallback: try using FileReader (helps with some HEIC on Safari)
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img2 = new window.Image();
+        img2.onload = () => resolve(img2);
+        img2.onerror = () => reject(new Error("Could not read this image format. Try taking a screenshot of the bill instead."));
+        img2.src = reader.result as string;
+      };
+      reader.onerror = () => reject(new Error("Could not read file"));
+      reader.readAsDataURL(file);
     };
 
+    // Try object URL first (faster, works for JPEG/PNG/WebP)
     img.src = URL.createObjectURL(file);
   });
 }
 
-// ===== FORMAT BYTES =====
+// Draw image to canvas and return base64 JPEG data URL
+function drawToCanvas(
+  img: HTMLImageElement,
+  maxDimension: number,
+  quality: number
+): string {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d")!;
+
+  let { width, height } = img;
+
+  // Scale down — maintain aspect ratio
+  if (width > height) {
+    if (width > maxDimension) {
+      height = Math.round((height * maxDimension) / width);
+      width = maxDimension;
+    }
+  } else {
+    if (height > maxDimension) {
+      width = Math.round((width * maxDimension) / height);
+      height = maxDimension;
+    }
+  }
+
+  canvas.width = width;
+  canvas.height = height;
+
+  // White background
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(img, 0, 0, width, height);
+
+  // Return as JPEG data URL (best compatibility with Safari/iOS)
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+// Format bytes for display
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
