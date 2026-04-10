@@ -5,10 +5,12 @@ import { eq } from "drizzle-orm";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
   try {
-    const billId = params.id;
+    // Next.js 14+ may pass params as a Promise
+    const params = await context.params;
+    const billId = params?.id;
 
     if (!billId) {
       return new NextResponse("Bill ID required", { status: 400 });
@@ -22,15 +24,18 @@ export async function GET(
       },
     });
 
-    if (!bill || !bill.imageUrl) {
-      return new NextResponse("Image not found", { status: 404 });
+    if (!bill) {
+      return new NextResponse("Bill not found", { status: 404 });
+    }
+
+    if (!bill.imageUrl) {
+      return new NextResponse("No image attached to this bill", { status: 404 });
     }
 
     const imageData = bill.imageUrl;
 
-    // Check if it's a base64 data URL
+    // Handle base64 data URL
     if (imageData.startsWith("data:")) {
-      // Parse the data URL: data:image/jpeg;base64,/9j/4AAQ...
       const matches = imageData.match(/^data:([^;]+);base64,(.+)$/);
 
       if (!matches) {
@@ -47,15 +52,16 @@ export async function GET(
           "Content-Type": mimeType,
           "Content-Length": imageBuffer.length.toString(),
           "Cache-Control": "public, max-age=31536000, immutable",
-          "Content-Disposition": `inline; filename="bill-${billId}.${mimeType.split("/")[1] || "jpg"}"`,
         },
       });
     }
 
-    // If it's a regular URL (legacy), redirect to it
+    // If it's a regular URL, redirect
     return NextResponse.redirect(imageData);
   } catch (error: any) {
     console.error("Image serve error:", error);
-    return new NextResponse("Internal server error", { status: 500 });
+    return new NextResponse("Server error: " + (error?.message || "unknown"), {
+      status: 500,
+    });
   }
 }
