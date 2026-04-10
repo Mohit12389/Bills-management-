@@ -3,9 +3,11 @@
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface ReportBill {
+  id?: string;
   amount: string;
   status: string;
   note: string | null;
+  imageUrl?: string | null;
   receivedDate: Date;
   paidDate: Date | null;
   category?: { name: string } | null;
@@ -29,6 +31,19 @@ interface ReportData {
   categoryBreakdown: ReportCategoryBreakdown[];
 }
 
+// Get the base URL for image links
+function getBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return "";
+}
+
+// Generate a public image URL for a bill
+function getBillImageUrl(billId: string): string {
+  return `${getBaseUrl()}/api/bills/image/${billId}`;
+}
+
 // ===== EXPORT AS CSV (opens in Excel) =====
 export function exportToCSV(data: ReportData) {
   const headers = [
@@ -39,6 +54,7 @@ export function exportToCSV(data: ReportData) {
     "Status",
     "Date Paid",
     "Note",
+    "Bill Image Link",
   ];
 
   const rows = data.bills.map((bill) => [
@@ -48,25 +64,37 @@ export function exportToCSV(data: ReportData) {
     bill.amount,
     bill.status.toUpperCase(),
     bill.paidDate ? formatDate(bill.paidDate) : "",
-    (bill.note || "").replace(/,/g, ";"),
+    `"${(bill.note || "").replace(/"/g, '""').replace(/\n/g, " ")}"`,
+    bill.imageUrl && bill.id ? getBillImageUrl(bill.id) : "",
   ]);
 
-  // Add summary section
+  // Summary section
   rows.push([]);
-  rows.push(["", "", "", "", "", "", ""]);
-  rows.push(["SUMMARY", "", "", "", "", "", ""]);
-  rows.push(["Total Amount", "", "", data.totalAmount.toString(), "", "", ""]);
-  rows.push(["Total Paid", "", "", data.totalPaid.toString(), "", "", ""]);
-  rows.push(["Total Unpaid", "", "", data.totalUnpaid.toString(), "", "", ""]);
+  rows.push(["", "", "", "", "", "", "", ""]);
+  rows.push(["SUMMARY", "", "", "", "", "", "", ""]);
+  rows.push(["Total Amount", "", "", data.totalAmount.toString(), "", "", "", ""]);
+  rows.push(["Total Paid", "", "", data.totalPaid.toString(), "", "", "", ""]);
+  rows.push(["Total Unpaid", "", "", data.totalUnpaid.toString(), "", "", "", ""]);
+  rows.push([
+    "Bills with Images",
+    "",
+    "",
+    data.bills.filter((b) => b.imageUrl).length.toString(),
+    `out of ${data.bills.length}`,
+    "",
+    "",
+    "",
+  ]);
   rows.push([]);
-  rows.push(["CATEGORY BREAKDOWN", "", "", "", "", "", ""]);
-  rows.push(["Category", "Total", "Paid", "Unpaid", "", "", ""]);
+  rows.push(["CATEGORY BREAKDOWN", "", "", "", "", "", "", ""]);
+  rows.push(["Category", "Total", "Paid", "Unpaid", "", "", "", ""]);
   data.categoryBreakdown.forEach((cat) => {
     rows.push([
       cat.name,
       cat.total.toString(),
       cat.paid.toString(),
       cat.unpaid.toString(),
+      "",
       "",
       "",
       "",
@@ -78,7 +106,11 @@ export function exportToCSV(data: ReportData) {
     ...rows.map((row) => row.join(",")),
   ].join("\n");
 
-  downloadFile(csvContent, `${data.title.replace(/\s+/g, "_")}.csv`, "text/csv");
+  downloadFile(
+    csvContent,
+    `${data.title.replace(/\s+/g, "_")}.csv`,
+    "text/csv"
+  );
 }
 
 // ===== EXPORT AS PRINTABLE PDF (via browser print) =====
@@ -104,7 +136,7 @@ export function exportToPrintablePDF(data: ReportData) {
     .section-title { font-size: 14px; font-weight: 600; margin: 20px 0 10px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 6px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
     th { background: #f5f0eb; text-align: left; padding: 8px 10px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #666; border-bottom: 2px solid #e5e5e5; }
-    td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; font-size: 11px; }
+    td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; font-size: 11px; vertical-align: middle; }
     tr:hover td { background: #fafafa; }
     .amount { font-weight: 600; text-align: right; font-family: monospace; font-size: 12px; }
     .status-paid { color: #16a34a; font-weight: 600; font-size: 10px; }
@@ -112,12 +144,20 @@ export function exportToPrintablePDF(data: ReportData) {
     .category-table th { background: #e5651f; color: white; }
     .total-row td { font-weight: 700; border-top: 2px solid #333; background: #f8f8f8; }
     .footer { text-align: center; margin-top: 24px; padding-top: 12px; border-top: 1px solid #eee; color: #999; font-size: 10px; }
-    @media print { body { padding: 12px; } .summary-card { break-inside: avoid; } }
+    .img-link { color: #e5651f; text-decoration: none; font-size: 10px; font-weight: 500; }
+    .img-link:hover { text-decoration: underline; }
+    .no-img { color: #ccc; font-size: 10px; }
+    @media print {
+      body { padding: 12px; }
+      .summary-card { break-inside: avoid; }
+      .img-link { color: #e5651f !important; }
+      a { color: #e5651f !important; }
+    }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>MithaiBills — Monthly Report</h1>
+    <h1>MithaiBills — Report</h1>
     <p>${data.title}${data.dateRange ? " • " + data.dateRange : ""}</p>
     <p>Generated on ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</p>
   </div>
@@ -138,7 +178,9 @@ export function exportToPrintablePDF(data: ReportData) {
     </div>
   </div>
 
-  ${data.categoryBreakdown.length > 0 ? `
+  ${
+    data.categoryBreakdown.length > 0
+      ? `
   <div class="section-title">Category Breakdown</div>
   <table class="category-table">
     <thead>
@@ -150,13 +192,17 @@ export function exportToPrintablePDF(data: ReportData) {
       </tr>
     </thead>
     <tbody>
-      ${data.categoryBreakdown.map((cat) => `
+      ${data.categoryBreakdown
+        .map(
+          (cat) => `
       <tr>
         <td>${cat.name}</td>
         <td class="amount">${formatCurrency(cat.total)}</td>
         <td class="amount" style="color:#16a34a">${formatCurrency(cat.paid)}</td>
         <td class="amount" style="color:#d97706">${formatCurrency(cat.unpaid)}</td>
-      </tr>`).join("")}
+      </tr>`
+        )
+        .join("")}
       <tr class="total-row">
         <td>TOTAL</td>
         <td class="amount">${formatCurrency(data.totalAmount)}</td>
@@ -165,7 +211,9 @@ export function exportToPrintablePDF(data: ReportData) {
       </tr>
     </tbody>
   </table>
-  ` : ""}
+  `
+      : ""
+  }
 
   <div class="section-title">All Bills</div>
   <table>
@@ -178,10 +226,18 @@ export function exportToPrintablePDF(data: ReportData) {
         <th>Status</th>
         <th>Paid On</th>
         <th>Note</th>
+        <th>Image</th>
       </tr>
     </thead>
     <tbody>
-      ${data.bills.map((bill) => `
+      ${data.bills
+        .map((bill) => {
+          const imageLink =
+            bill.imageUrl && bill.id
+              ? `<a href="${getBillImageUrl(bill.id)}" target="_blank" class="img-link">📄 View</a>`
+              : `<span class="no-img">—</span>`;
+
+          return `
       <tr>
         <td>${formatDate(bill.receivedDate)}</td>
         <td>${bill.category?.name || "—"}</td>
@@ -190,12 +246,16 @@ export function exportToPrintablePDF(data: ReportData) {
         <td class="${bill.status === "paid" ? "status-paid" : "status-unpaid"}">${bill.status.toUpperCase()}</td>
         <td>${bill.paidDate ? formatDate(bill.paidDate) : "—"}</td>
         <td>${bill.note || "—"}</td>
-      </tr>`).join("")}
+        <td>${imageLink}</td>
+      </tr>`;
+        })
+        .join("")}
     </tbody>
   </table>
 
   <div class="footer">
-    MithaiBills — Sweet Shop Bill Manager • This report was auto-generated
+    MithaiBills — Sweet Shop Bill Manager • This report was auto-generated<br>
+    <span style="font-size:9px; color:#bbb;">Image links point to: ${getBaseUrl()}/api/bills/image/[id]</span>
   </div>
 </body>
 </html>`;
@@ -205,11 +265,9 @@ export function exportToPrintablePDF(data: ReportData) {
   if (printWindow) {
     printWindow.document.write(html);
     printWindow.document.close();
-    // Wait for content to render, then print
     printWindow.onload = () => {
       printWindow.print();
     };
-    // Fallback if onload doesn't fire
     setTimeout(() => {
       printWindow.print();
     }, 500);

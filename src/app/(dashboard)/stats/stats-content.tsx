@@ -46,9 +46,11 @@ import { formatCurrency } from "@/lib/utils";
 import { exportToCSV, exportToPrintablePDF } from "@/lib/export-report";
 
 interface BillForStats {
+  id: string;
   amount: string;
   status: string;
   note: string | null;
+  imageUrl: string | null;
   receivedDate: Date;
   paidDate: Date | null;
   category: { id: string; name: string; color: string } | null;

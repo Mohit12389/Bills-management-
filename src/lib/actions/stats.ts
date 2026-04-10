@@ -209,11 +209,13 @@ export async function getStatsData(filters: StatsFilters = {}) {
     vendorBreakdown: Array.from(vendorTotals.values())
       .sort((a, b) => b.total - a.total)
       .slice(0, 15),
-    // Raw bills for export and client-side filtering (without images to keep payload small)
+    // Raw bills for export and client-side filtering
     allBills: allBills.map((b) => ({
+      id: b.id,
       amount: b.amount,
       status: b.status,
       note: b.note,
+      imageUrl: b.imageUrl || null,
       receivedDate: b.receivedDate,
       paidDate: b.paidDate,
       category: b.category
