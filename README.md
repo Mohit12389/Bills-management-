@@ -1,4 +1,4 @@
-# 🍬 MithaiBills — Sweet Shop Bill Manager
+# 🍬 Bill Manager
 
 A full-stack bill management system built for sweet shops to track raw material purchases, manage vendor payments, and get spending insights.
 
