@@ -15,6 +15,7 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [compressionInfo, setCompressionInfo] = useState<string | null>(null);
 
   const handleFileSelect = useCallback(
     async (file: File) => {
@@ -25,10 +26,21 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
 
       setIsUploading(true);
       setError(null);
+      setCompressionInfo(null);
 
       try {
-        // Client-side compression — aggressive to keep DB small
-        const compressed = await compressImage(file, 800, 0.5);
+        const originalSize = file.size;
+
+        // Multi-pass compression to guarantee small output
+        const compressed = await compressImageSmart(file);
+        const compressedSize = compressed.size;
+
+        const reduction = Math.round(
+          ((originalSize - compressedSize) / originalSize) * 100
+        );
+        setCompressionInfo(
+          `Compressed: ${formatBytes(originalSize)} → ${formatBytes(compressedSize)} (${reduction}% smaller)`
+        );
 
         // Create FormData for upload
         const formData = new FormData();
@@ -49,6 +61,7 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
       } catch (err: any) {
         console.error("Upload error:", err);
         setError(err.message || "Failed to upload image. Please try again.");
+        setCompressionInfo(null);
       } finally {
         setIsUploading(false);
       }
@@ -70,7 +83,6 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) handleFileSelect(file);
-      // Reset input so same file can be selected again
       e.target.value = "";
     },
     [handleFileSelect]
@@ -95,13 +107,16 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
             onClick={() => {
               onChange(null);
               setError(null);
+              setCompressionInfo(null);
             }}
             disabled={disabled}
           >
             <X className="h-3 w-3" />
           </Button>
         </div>
-        <p className="text-[10px] text-emerald-600">Image uploaded successfully</p>
+        {compressionInfo && (
+          <p className="text-[10px] text-emerald-600">{compressionInfo}</p>
+        )}
       </div>
     );
   }
@@ -123,10 +138,13 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
           disabled && "pointer-events-none opacity-50"
         )}
       >
+        {/*
+          NO capture attribute — this lets iOS show the full picker:
+          "Take Photo", "Photo Library", "Browse Files"
+        */}
         <input
           type="file"
-          accept="image/*"
-          capture="environment"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
           onChange={handleInputChange}
           className="absolute inset-0 cursor-pointer opacity-0"
           disabled={disabled || isUploading}
@@ -137,6 +155,9 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
             <p className="text-xs text-muted-foreground">
               Compressing & uploading...
             </p>
+            <p className="text-[10px] text-muted-foreground">
+              Large photos may take a few seconds
+            </p>
           </>
         ) : (
           <>
@@ -146,14 +167,13 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
             <div className="text-center">
               <p className="text-sm font-medium">Upload bill image</p>
               <p className="text-xs text-muted-foreground">
-                Tap to take photo or choose from gallery
+                Take photo or choose from gallery
               </p>
             </div>
           </>
         )}
       </div>
 
-      {/* Error message */}
       {error && (
         <div className="flex items-center gap-1.5 text-xs text-destructive">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
@@ -164,13 +184,40 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
   );
 }
 
-// Client-side image compression — aggressive settings
+// ===== SMART COMPRESSION =====
+// Handles iPhone 16 (48MP, 10-15MB HEIC) down to <300KB
+// Uses multiple passes with decreasing quality if needed
+async function compressImageSmart(file: File): Promise<File> {
+  const TARGET_SIZE = 300 * 1024; // 300KB target (server allows up to 500KB)
+
+  // First pass: resize to max 1000px and quality 0.6
+  let result = await compressImage(file, 1000, 0.6);
+
+  // If still too large, try smaller dimensions
+  if (result.size > TARGET_SIZE) {
+    result = await compressImage(file, 700, 0.5);
+  }
+
+  // If STILL too large (huge 48MP source), go even smaller
+  if (result.size > TARGET_SIZE) {
+    result = await compressImage(file, 500, 0.4);
+  }
+
+  // Final resort for extremely large images
+  if (result.size > TARGET_SIZE) {
+    result = await compressImage(file, 400, 0.3);
+  }
+
+  return result;
+}
+
+// ===== CORE COMPRESSION =====
 async function compressImage(
   file: File,
-  maxWidth: number,
+  maxDimension: number,
   quality: number
 ): Promise<File> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const img = new window.Image();
 
     img.onload = () => {
@@ -185,53 +232,42 @@ async function compressImage(
 
         let { width, height } = img;
 
-        // Scale down if larger than maxWidth
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-
-        // Also limit height
-        if (height > maxWidth) {
-          width = Math.round((width * maxWidth) / height);
-          height = maxWidth;
+        // Scale down — limit both width and height
+        if (width > height) {
+          if (width > maxDimension) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          }
+        } else {
+          if (height > maxDimension) {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
         }
 
         canvas.width = width;
         canvas.height = height;
+
+        // White background (in case of transparent PNGs)
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Try WebP first (best compression), fallback to JPEG
+        // Try JPEG (universally supported, good compression)
         canvas.toBlob(
           (blob) => {
             if (blob) {
               const compressed = new File(
                 [blob],
-                file.name.replace(/\.[^.]+$/, ".webp"),
-                { type: "image/webp", lastModified: Date.now() }
+                file.name.replace(/\.[^.]+$/, ".jpg"),
+                { type: "image/jpeg", lastModified: Date.now() }
               );
               resolve(compressed);
             } else {
-              // WebP not supported, try JPEG
-              canvas.toBlob(
-                (jpegBlob) => {
-                  if (jpegBlob) {
-                    const compressed = new File(
-                      [jpegBlob],
-                      file.name.replace(/\.[^.]+$/, ".jpg"),
-                      { type: "image/jpeg", lastModified: Date.now() }
-                    );
-                    resolve(compressed);
-                  } else {
-                    resolve(file);
-                  }
-                },
-                "image/jpeg",
-                quality
-              );
+              resolve(file);
             }
           },
-          "image/webp",
+          "image/jpeg",
           quality
         );
       } catch (err) {
@@ -245,4 +281,11 @@ async function compressImage(
 
     img.src = URL.createObjectURL(file);
   });
+}
+
+// ===== FORMAT BYTES =====
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

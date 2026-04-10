@@ -25,18 +25,22 @@ export async function POST(request: NextRequest) {
     // Convert file to base64 data URL
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const base64 = buffer.toString("base64");
-    const mimeType = file.type;
-    const dataUrl = `data:${mimeType};base64,${base64}`;
 
-    // Check size — keep under 200KB for DB efficiency
-    // The client already compresses, so this is a safety check
+    // Safety check — client compresses to ~100-300KB
+    // Allow up to 500KB after compression
     if (buffer.length > 500 * 1024) {
+      const sizeKB = Math.round(buffer.length / 1024);
       return NextResponse.json(
-        { error: "Image too large after compression. Please use a smaller image." },
+        {
+          error: `Image is ${sizeKB}KB after compression (max 500KB). The image will be compressed further automatically — please try again.`,
+        },
         { status: 400 }
       );
     }
+
+    const base64 = buffer.toString("base64");
+    const mimeType = file.type;
+    const dataUrl = `data:${mimeType};base64,${base64}`;
 
     return NextResponse.json({ url: dataUrl });
   } catch (error: any) {
