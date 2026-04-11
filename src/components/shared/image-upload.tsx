@@ -30,16 +30,23 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
 
       try {
         const originalSize = file.size;
+        let dataUrl: string;
 
-        // Compress entirely on client — returns a base64 data URL
-        const dataUrl = await compressToBase64(file);
+        try {
+          // Try canvas compression first
+          dataUrl = await compressToBase64(file);
+        } catch (compressionError) {
+          // If canvas fails (some HEIC/edited photos), use FileReader as fallback
+          console.warn("Canvas compression failed, using FileReader fallback:", compressionError);
+          dataUrl = await fileToBase64(file);
+        }
 
-        // Check final size (base64 is ~33% larger than binary)
+        // Check final size
         const base64Size = Math.round((dataUrl.length * 3) / 4);
 
         if (base64Size > 800 * 1024) {
           throw new Error(
-            `Image is still ${formatBytes(base64Size)} after max compression. Please use a smaller or lower-resolution image.`
+            "Image is too large even after compression. Please take a new photo or use a screenshot of the bill."
           );
         }
 
@@ -50,11 +57,10 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
           `${formatBytes(originalSize)} → ${formatBytes(base64Size)} (${reduction}% smaller)`
         );
 
-        // Pass the base64 data URL directly — no server upload needed!
         onChange(dataUrl);
       } catch (err: any) {
-        console.error("Compression error:", err);
-        setError(err.message || "Failed to process image. Please try again.");
+        console.error("Upload error:", err);
+        setError(err.message || "Failed to process image. Try taking a new photo instead.");
         setCompressionInfo(null);
       } finally {
         setIsUploading(false);
@@ -279,4 +285,20 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// Fallback: convert file directly to base64 without canvas (no compression)
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Failed to read file"));
+      }
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
 }
