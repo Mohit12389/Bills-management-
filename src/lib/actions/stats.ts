@@ -216,6 +216,7 @@ export async function getStatsData(filters: StatsFilters = {}) {
       status: b.status,
       note: b.note,
       imageUrl: b.imageUrl || null,
+      paymentMode: b.paymentMode || null,
       receivedDate: b.receivedDate,
       paidDate: b.paidDate,
       category: b.category

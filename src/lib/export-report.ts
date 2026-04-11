@@ -8,6 +8,7 @@ interface ReportBill {
   status: string;
   note: string | null;
   imageUrl?: string | null;
+  paymentMode?: string | null;
   receivedDate: Date;
   paidDate: Date | null;
   category?: { name: string } | null;
@@ -43,12 +44,7 @@ function getBillImageUrl(billId: string): string {
 }
 
 function csvEscape(value: string): string {
-  if (
-    value.includes(",") ||
-    value.includes('"') ||
-    value.includes("\n") ||
-    value.includes("\r")
-  ) {
+  if (value.includes(",") || value.includes('"') || value.includes("\n") || value.includes("\r")) {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;
@@ -62,6 +58,7 @@ export function exportToCSV(data: ReportData) {
     "Vendor",
     "Amount",
     "Status",
+    "Payment Mode",
     "Date Paid",
     "Note",
     "Bill Image URL",
@@ -74,31 +71,37 @@ export function exportToCSV(data: ReportData) {
       bill.vendor?.name || "No vendor",
       bill.amount,
       bill.status.toUpperCase(),
+      bill.status === "paid" ? (bill.paymentMode || "—").toUpperCase() : "",
       bill.paidDate ? formatDate(bill.paidDate) : "",
       bill.note || "",
       bill.imageUrl && bill.id ? getBillImageUrl(bill.id) : "No image",
-    ]
-      .map(csvEscape)
-      .join(",")
+    ].map(csvEscape).join(",")
   );
+
+  const cashCount = data.bills.filter((b) => b.paymentMode === "cash").length;
+  const onlineCount = data.bills.filter((b) => b.paymentMode === "online").length;
+  const cashTotal = data.bills.filter((b) => b.paymentMode === "cash").reduce((s, b) => s + parseFloat(b.amount), 0);
+  const onlineTotal = data.bills.filter((b) => b.paymentMode === "online").reduce((s, b) => s + parseFloat(b.amount), 0);
 
   const summaryRows = [
     "",
-    "SUMMARY,,,,,,",
-    `Total Amount,,,${csvEscape(formatCurrency(data.totalAmount))},,,,`,
-    `Total Paid,,,${csvEscape(formatCurrency(data.totalPaid))},,,,`,
-    `Total Unpaid,,,${csvEscape(formatCurrency(data.totalUnpaid))},,,,`,
-    `Total Bills,,,${data.bills.length},,,,`,
-    `Bills with Images,,,${data.bills.filter((b) => b.imageUrl).length},,,,`,
+    "SUMMARY,,,,,,,,",
+    `Total Amount,,,,${csvEscape(formatCurrency(data.totalAmount))},,,,,`,
+    `Total Paid,,,,${csvEscape(formatCurrency(data.totalPaid))},,,,,`,
+    `Total Unpaid,,,,${csvEscape(formatCurrency(data.totalUnpaid))},,,,,`,
+    `Total Bills,,,,${data.bills.length},,,,,`,
+    `Paid by Cash,,,,${cashCount} bills,${csvEscape(formatCurrency(cashTotal))},,,,`,
+    `Paid Online,,,,${onlineCount} bills,${csvEscape(formatCurrency(onlineTotal))},,,,`,
+    `Bills with Images,,,,${data.bills.filter((b) => b.imageUrl).length},,,,,`,
   ];
 
   const categoryRows: string[] = [""];
   if (data.categoryBreakdown.length > 0) {
-    categoryRows.push("CATEGORY BREAKDOWN,,,,,,");
-    categoryRows.push("Category,Total,Paid,Unpaid,,,,");
+    categoryRows.push("CATEGORY BREAKDOWN,,,,,,,,");
+    categoryRows.push("Category,Total,Paid,Unpaid,,,,,,");
     data.categoryBreakdown.forEach((cat) => {
       categoryRows.push(
-        `${csvEscape(cat.name)},${csvEscape(formatCurrency(cat.total))},${csvEscape(formatCurrency(cat.paid))},${csvEscape(formatCurrency(cat.unpaid))},,,,`
+        `${csvEscape(cat.name)},${csvEscape(formatCurrency(cat.total))},${csvEscape(formatCurrency(cat.paid))},${csvEscape(formatCurrency(cat.unpaid))},,,,,,`
       );
     });
   }
@@ -116,8 +119,13 @@ export function exportToCSV(data: ReportData) {
   URL.revokeObjectURL(url);
 }
 
-// ===== EXPORT AS PDF (clickable links only, no thumbnails) =====
+// ===== EXPORT AS PDF =====
 export function exportToPrintablePDF(data: ReportData) {
+  const cashCount = data.bills.filter((b) => b.paymentMode === "cash").length;
+  const onlineCount = data.bills.filter((b) => b.paymentMode === "online").length;
+  const cashTotal = data.bills.filter((b) => b.paymentMode === "cash").reduce((s, b) => s + parseFloat(b.amount), 0);
+  const onlineTotal = data.bills.filter((b) => b.paymentMode === "online").reduce((s, b) => s + parseFloat(b.amount), 0);
+
   const html = `
 <!DOCTYPE html>
 <html>
@@ -130,29 +138,30 @@ export function exportToPrintablePDF(data: ReportData) {
     .header { text-align: center; margin-bottom: 24px; border-bottom: 2px solid #e5651f; padding-bottom: 16px; }
     .header h1 { font-size: 22px; color: #e5651f; margin-bottom: 4px; }
     .header p { color: #666; font-size: 11px; }
-    .summary { display: flex; gap: 12px; margin-bottom: 20px; }
-    .summary-card { flex: 1; background: #f8f8f8; border-radius: 8px; padding: 12px; text-align: center; }
-    .summary-card .label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #888; }
-    .summary-card .value { font-size: 18px; font-weight: 700; margin-top: 4px; }
+    .summary { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .summary-card { flex: 1; min-width: 80px; background: #f8f8f8; border-radius: 8px; padding: 10px; text-align: center; }
+    .summary-card .label { font-size: 8px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; }
+    .summary-card .value { font-size: 15px; font-weight: 700; margin-top: 3px; }
     .summary-card.paid .value { color: #16a34a; }
     .summary-card.unpaid .value { color: #d97706; }
+    .summary-card.cash .value { color: #059669; }
+    .summary-card.online .value { color: #2563eb; }
     .section-title { font-size: 14px; font-weight: 600; margin: 20px 0 10px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 6px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-    th { background: #f5f0eb; text-align: left; padding: 8px 10px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #666; border-bottom: 2px solid #e5e5e5; }
-    td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; font-size: 11px; vertical-align: middle; }
-    .amount { font-weight: 600; text-align: right; font-family: monospace; font-size: 12px; }
-    .status-paid { color: #16a34a; font-weight: 600; font-size: 10px; }
-    .status-unpaid { color: #d97706; font-weight: 600; font-size: 10px; }
+    th { background: #f5f0eb; text-align: left; padding: 6px 8px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #666; border-bottom: 2px solid #e5e5e5; }
+    td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; font-size: 10px; vertical-align: middle; }
+    .amount { font-weight: 600; text-align: right; font-family: monospace; font-size: 11px; }
+    .status-paid { color: #16a34a; font-weight: 600; font-size: 9px; }
+    .status-unpaid { color: #d97706; font-weight: 600; font-size: 9px; }
+    .mode-cash { color: #059669; font-size: 9px; font-weight: 500; }
+    .mode-online { color: #2563eb; font-size: 9px; font-weight: 500; }
     .category-table th { background: #e5651f; color: white; }
     .total-row td { font-weight: 700; border-top: 2px solid #333; background: #f8f8f8; }
     .footer { text-align: center; margin-top: 24px; padding-top: 12px; border-top: 1px solid #eee; color: #999; font-size: 10px; }
-    .img-link { color: #e5651f; text-decoration: none; font-weight: 600; font-size: 10px; border: 1px solid #e5651f; padding: 2px 8px; border-radius: 4px; }
+    .img-link { color: #e5651f; text-decoration: none; font-weight: 600; font-size: 9px; border: 1px solid #e5651f; padding: 1px 6px; border-radius: 3px; }
     .img-link:hover { background: #e5651f; color: white; }
-    .no-img { color: #ccc; font-size: 10px; }
-    @media print {
-      body { padding: 12px; }
-      .img-link { color: #e5651f !important; border-color: #e5651f !important; }
-    }
+    .no-img { color: #ccc; font-size: 9px; }
+    @media print { body { padding: 12px; } .img-link { color: #e5651f !important; } }
   </style>
 </head>
 <body>
@@ -164,7 +173,7 @@ export function exportToPrintablePDF(data: ReportData) {
 
   <div class="summary">
     <div class="summary-card">
-      <div class="label">Total Bills</div>
+      <div class="label">Total</div>
       <div class="value">${formatCurrency(data.totalAmount)}</div>
       <div class="label">${data.bills.length} bills</div>
     </div>
@@ -175,6 +184,16 @@ export function exportToPrintablePDF(data: ReportData) {
     <div class="summary-card unpaid">
       <div class="label">Unpaid</div>
       <div class="value">${formatCurrency(data.totalUnpaid)}</div>
+    </div>
+    <div class="summary-card cash">
+      <div class="label">Cash</div>
+      <div class="value">${formatCurrency(cashTotal)}</div>
+      <div class="label">${cashCount} bills</div>
+    </div>
+    <div class="summary-card online">
+      <div class="label">Online</div>
+      <div class="value">${formatCurrency(onlineTotal)}</div>
+      <div class="label">${onlineCount} bills</div>
     </div>
   </div>
 
@@ -216,6 +235,7 @@ export function exportToPrintablePDF(data: ReportData) {
         <th>Vendor</th>
         <th style="text-align:right">Amount</th>
         <th>Status</th>
+        <th>Mode</th>
         <th>Paid On</th>
         <th>Note</th>
         <th>Image</th>
@@ -226,6 +246,8 @@ export function exportToPrintablePDF(data: ReportData) {
         const imageCell = bill.imageUrl && bill.id
           ? `<a href="${getBillImageUrl(bill.id)}" target="_blank" class="img-link">View</a>`
           : `<span class="no-img">—</span>`;
+        const modeClass = bill.paymentMode === "cash" ? "mode-cash" : bill.paymentMode === "online" ? "mode-online" : "";
+        const modeText = bill.status === "paid" ? (bill.paymentMode ? bill.paymentMode.toUpperCase() : "—") : "";
 
         return `
       <tr>
@@ -234,6 +256,7 @@ export function exportToPrintablePDF(data: ReportData) {
         <td>${bill.vendor?.name || "—"}</td>
         <td class="amount">${formatCurrency(bill.amount)}</td>
         <td class="${bill.status === "paid" ? "status-paid" : "status-unpaid"}">${bill.status.toUpperCase()}</td>
+        <td class="${modeClass}">${modeText}</td>
         <td>${bill.paidDate ? formatDate(bill.paidDate) : "—"}</td>
         <td>${bill.note || "—"}</td>
         <td>${imageCell}</td>
@@ -252,11 +275,7 @@ export function exportToPrintablePDF(data: ReportData) {
   if (printWindow) {
     printWindow.document.write(html);
     printWindow.document.close();
-    printWindow.onload = () => {
-      printWindow.print();
-    };
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
+    printWindow.onload = () => { printWindow.print(); };
+    setTimeout(() => { printWindow.print(); }, 500);
   }
 }

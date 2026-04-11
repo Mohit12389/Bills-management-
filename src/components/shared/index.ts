@@ -6,3 +6,4 @@ export { ConfirmDialog } from "./confirm-dialog";
 export { Skeleton, CardSkeleton, TableRowSkeleton, BillListSkeleton } from "./skeleton";
 export { ImageUpload } from "./image-upload";
 export { ImageViewer } from "./image-viewer";
+export { PaymentModeDialog } from "./payment-mode-dialog";

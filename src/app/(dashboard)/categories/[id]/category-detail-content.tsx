@@ -45,7 +45,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { StatusBadge, EmptyState, ImageUpload, ImageViewer, DateRangePicker } from "@/components/shared";
+import { StatusBadge, EmptyState, ImageUpload, ImageViewer, DateRangePicker, PaymentModeDialog } from "@/components/shared";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { createVendor, updateVendor, deleteVendor } from "@/lib/actions/vendors";
 import { createBill, updateBill, toggleBillStatus, deleteBill } from "@/lib/actions/bills";
@@ -56,6 +56,7 @@ interface BillItem {
   note: string | null;
   imageUrl: string | null;
   status: string;
+  paymentMode: string | null;
   receivedDate: Date;
   paidDate: Date | null;
   dueDate: Date | null;
@@ -84,6 +85,9 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
   const [billDialogOpen, setBillDialogOpen] = useState(false);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentModeOpen, setPaymentModeOpen] = useState(false);
+  const [pendingPayBillId, setPendingPayBillId] = useState<string | null>(null);
+  const [pendingPayAmount, setPendingPayAmount] = useState<string>("");
 
   // ===== EDIT TRACKING =====
   const [editingBillId, setEditingBillId] = useState<string | null>(null);
@@ -255,10 +259,36 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
     }
   };
 
-  const handleToggleStatus = async (billId: string) => {
+  const handleToggleStatus = async (billId: string, billAmount?: string) => {
+    // Find the bill to check current status
+    const bill = category.bills.find((b) => b.id === billId);
+    if (!bill) return;
+
+    if (bill.status === "unpaid") {
+      // Going from unpaid → paid: ask for payment mode
+      setPendingPayBillId(billId);
+      setPendingPayAmount(billAmount || "");
+      setPaymentModeOpen(true);
+    } else {
+      // Going from paid → unpaid: no dialog needed
+      try {
+        await toggleBillStatus(billId);
+        toast.success("Marked as unpaid");
+        window.location.reload();
+      } catch (error) {
+        toast.error("Failed to update status");
+      }
+    }
+  };
+
+  const handlePaymentModeConfirm = async (mode: "cash" | "online", paidDate: Date) => {
+    if (!pendingPayBillId) return;
+    setPaymentModeOpen(false);
     try {
-      await toggleBillStatus(billId);
-      toast.success("Status updated");
+      await toggleBillStatus(pendingPayBillId, mode, paidDate.toISOString());
+      toast.success(`Marked as paid (${mode})`);
+      setPendingPayBillId(null);
+      setPendingPayAmount("");
       window.location.reload();
     } catch (error) {
       toast.error("Failed to update status");
@@ -416,6 +446,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                           {bill.vendor?.name || "No vendor"} •{" "}
                           Received {formatDate(bill.receivedDate)}
                           {bill.paidDate && ` • Paid ${formatDate(bill.paidDate)}`}
+                          {bill.paymentMode && ` (${bill.paymentMode})`}
                         </p>
                         {bill.note && (
                           <p className="mt-0.5 truncate text-xs text-muted-foreground/70">
@@ -430,7 +461,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                           variant="ghost"
                           size="sm"
                           className="h-8 gap-1 text-xs"
-                          onClick={() => handleToggleStatus(bill.id)}
+                          onClick={() => handleToggleStatus(bill.id, formatCurrency(bill.amount))}
                         >
                           {bill.status === "unpaid" ? (
                             <>
@@ -790,6 +821,17 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
           title={`${category.name} - Bill`}
         />
       )}
+
+      {/* Payment Mode Dialog */}
+      <PaymentModeDialog
+        open={paymentModeOpen}
+        onClose={() => {
+          setPaymentModeOpen(false);
+          setPendingPayBillId(null);
+        }}
+        onConfirm={handlePaymentModeConfirm}
+        billAmount={pendingPayAmount}
+      />
     </>
   );
 }

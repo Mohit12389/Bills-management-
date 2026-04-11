@@ -160,7 +160,11 @@ export async function updateBill(
   return bill;
 }
 
-export async function toggleBillStatus(id: string) {
+export async function toggleBillStatus(
+  id: string,
+  paymentMode?: "cash" | "online",
+  customPaidDate?: string
+) {
   const user = await getCurrentUser();
 
   const bill = await db.query.bills.findFirst({
@@ -170,13 +174,16 @@ export async function toggleBillStatus(id: string) {
   if (!bill) throw new Error("Bill not found");
 
   const newStatus = bill.status === "paid" ? "unpaid" : "paid";
-  const paidDate = newStatus === "paid" ? new Date() : null;
+  const paidDate = newStatus === "paid"
+    ? (customPaidDate ? new Date(customPaidDate) : new Date())
+    : null;
 
   const [updated] = await db
     .update(bills)
     .set({
       status: newStatus,
       paidDate,
+      paymentMode: newStatus === "paid" ? (paymentMode || null) : null,
       updatedAt: new Date(),
     })
     .where(and(eq(bills.id, id), eq(bills.userId, user.id)))
@@ -191,10 +198,14 @@ export async function toggleBillStatus(id: string) {
 
 export async function bulkUpdateBillStatus(
   ids: string[],
-  status: "paid" | "unpaid"
+  status: "paid" | "unpaid",
+  paymentMode?: "cash" | "online",
+  customPaidDate?: string
 ) {
   const user = await getCurrentUser();
-  const paidDate = status === "paid" ? new Date() : null;
+  const paidDate = status === "paid"
+    ? (customPaidDate ? new Date(customPaidDate) : new Date())
+    : null;
 
   for (const id of ids) {
     await db
@@ -202,6 +213,7 @@ export async function bulkUpdateBillStatus(
       .set({
         status,
         paidDate,
+        paymentMode: status === "paid" ? (paymentMode || null) : null,
         updatedAt: new Date(),
       })
       .where(and(eq(bills.id, id), eq(bills.userId, user.id)));

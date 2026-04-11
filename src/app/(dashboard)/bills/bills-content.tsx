@@ -36,6 +36,7 @@ import {
   EmptyState,
   ImageViewer,
   DateRangePicker,
+  PaymentModeDialog,
 } from "@/components/shared";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
@@ -51,6 +52,7 @@ interface BillWithRelations {
   note: string | null;
   imageUrl: string | null;
   status: string;
+  paymentMode: string | null;
   receivedDate: Date;
   paidDate: Date | null;
   dueDate: Date | null;
@@ -75,6 +77,10 @@ export function BillsContent({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [paymentModeOpen, setPaymentModeOpen] = useState(false);
+  const [pendingPayBillId, setPendingPayBillId] = useState<string | null>(null);
+  const [pendingPayAmount, setPendingPayAmount] = useState<string>("");
+  const [pendingBulkPay, setPendingBulkPay] = useState(false);
 
   // ===== ALL FILTERS AS CLIENT STATE =====
   const [searchQuery, setSearchQuery] = useState("");
@@ -155,23 +161,73 @@ export function BillsContent({
 
   // ===== ACTIONS =====
   const handleToggleStatus = async (id: string) => {
-    try {
-      await toggleBillStatus(id);
-      setBills((prev) =>
-        prev.map((b) =>
-          b.id === id
-            ? {
-                ...b,
-                status: b.status === "paid" ? "unpaid" : "paid",
-                paidDate: b.status === "unpaid" ? new Date() : null,
-              }
-            : b
-        )
-      );
-      toast.success("Status updated");
-    } catch {
-      toast.error("Failed to update");
+    const bill = bills.find((b) => b.id === id);
+    if (!bill) return;
+
+    if (bill.status === "unpaid") {
+      // Going unpaid → paid: ask for payment mode
+      setPendingPayBillId(id);
+      setPendingPayAmount(formatCurrency(bill.amount));
+      setPendingBulkPay(false);
+      setPaymentModeOpen(true);
+    } else {
+      // Going paid → unpaid: no dialog
+      try {
+        await toggleBillStatus(id);
+        setBills((prev) =>
+          prev.map((b) =>
+            b.id === id
+              ? { ...b, status: "unpaid", paidDate: null, paymentMode: null }
+              : b
+          )
+        );
+        toast.success("Marked as unpaid");
+      } catch {
+        toast.error("Failed to update");
+      }
     }
+  };
+
+  const handlePaymentModeConfirm = async (mode: "cash" | "online", paidDate: Date) => {
+    setPaymentModeOpen(false);
+    const dateStr = paidDate.toISOString();
+
+    if (pendingBulkPay) {
+      // Bulk mark paid
+      try {
+        await bulkUpdateBillStatus(Array.from(selectedIds), "paid", mode, dateStr);
+        setBills((prev) =>
+          prev.map((b) =>
+            selectedIds.has(b.id)
+              ? { ...b, status: "paid", paidDate: paidDate, paymentMode: mode }
+              : b
+          )
+        );
+        toast.success(`${selectedIds.size} bills marked paid (${mode})`);
+        setSelectedIds(new Set());
+      } catch {
+        toast.error("Failed to update");
+      }
+    } else if (pendingPayBillId) {
+      // Single bill mark paid
+      try {
+        await toggleBillStatus(pendingPayBillId, mode, dateStr);
+        setBills((prev) =>
+          prev.map((b) =>
+            b.id === pendingPayBillId
+              ? { ...b, status: "paid", paidDate: paidDate, paymentMode: mode }
+              : b
+          )
+        );
+        toast.success(`Marked as paid (${mode})`);
+      } catch {
+        toast.error("Failed to update");
+      }
+    }
+
+    setPendingPayBillId(null);
+    setPendingPayAmount("");
+    setPendingBulkPay(false);
   };
 
   const handleDelete = async (id: string) => {
@@ -187,19 +243,11 @@ export function BillsContent({
     }
   };
 
-  const handleBulkPaid = async () => {
-    try {
-      await bulkUpdateBillStatus(Array.from(selectedIds), "paid");
-      setBills((prev) =>
-        prev.map((b) =>
-          selectedIds.has(b.id) ? { ...b, status: "paid", paidDate: new Date() } : b
-        )
-      );
-      toast.success(`${selectedIds.size} bills marked paid`);
-      setSelectedIds(new Set());
-    } catch {
-      toast.error("Failed to update");
-    }
+  const handleBulkPaid = () => {
+    // Open payment mode dialog for bulk
+    setPendingBulkPay(true);
+    setPendingPayAmount(`${selectedIds.size} bills`);
+    setPaymentModeOpen(true);
   };
 
   const handleBulkUnpaid = async () => {
@@ -207,7 +255,7 @@ export function BillsContent({
       await bulkUpdateBillStatus(Array.from(selectedIds), "unpaid");
       setBills((prev) =>
         prev.map((b) =>
-          selectedIds.has(b.id) ? { ...b, status: "unpaid", paidDate: null } : b
+          selectedIds.has(b.id) ? { ...b, status: "unpaid", paidDate: null, paymentMode: null } : b
         )
       );
       toast.success(`${selectedIds.size} bills marked unpaid`);
@@ -414,6 +462,7 @@ export function BillsContent({
                     <p className="text-xs text-muted-foreground">
                       {bill.vendor?.name || "No vendor"} • {formatDate(bill.receivedDate)}
                       {bill.paidDate && ` • Paid ${formatDate(bill.paidDate)}`}
+                      {bill.paymentMode && ` (${bill.paymentMode})`}
                     </p>
                     {bill.note && (
                       <p className="mt-0.5 truncate text-xs text-muted-foreground/70">
@@ -546,6 +595,18 @@ export function BillsContent({
           imageUrl={viewingImage}
         />
       )}
+
+      {/* Payment Mode Dialog */}
+      <PaymentModeDialog
+        open={paymentModeOpen}
+        onClose={() => {
+          setPaymentModeOpen(false);
+          setPendingPayBillId(null);
+          setPendingBulkPay(false);
+        }}
+        onConfirm={handlePaymentModeConfirm}
+        billAmount={pendingPayAmount}
+      />
     </>
   );
 }
