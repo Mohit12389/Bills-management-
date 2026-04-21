@@ -213,4 +213,4 @@ npm run lint
 
 ## 📝 License
 
-MIT
+mohit panwar
