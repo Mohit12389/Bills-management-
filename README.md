@@ -11,6 +11,22 @@ A full-stack bill management system built for sweet shops to track raw material 
 **Tech Stack:** Next.js 14 • TypeScript • React • shadcn/ui • Tailwind CSS • Neon (PostgreSQL) • Drizzle ORM • Clerk Auth • Recharts
 
 ---
+## 📱 Screenshots
+
+### Dashboard
+![Dashboard](screenshots/dashboard.png)
+
+### Categories
+![Categories](screenshots/categories.png)
+
+### Bills
+![Bills](screenshots/bills.png)
+
+### Stats
+![Stats](screenshots/stats.png)
+
+### Stats
+![payment-modal](screenshots/payment-modal.png)
 
 ## ✨ Features
 
