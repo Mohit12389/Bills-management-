@@ -40,27 +40,18 @@ export async function getDashboardStats() {
     .filter((b) => b.status === "unpaid")
     .reduce((s, b) => s + parseFloat(b.amount), 0);
 
-  const thisMonthTotal = thisMonth.reduce(
-    (s, b) => s + parseFloat(b.amount),
-    0
-  );
-  const lastMonthTotal = lastMonth.reduce(
-    (s, b) => s + parseFloat(b.amount),
-    0
-  );
+  const thisMonthTotal = thisMonth.reduce((s, b) => s + parseFloat(b.amount), 0);
+  const lastMonthTotal = lastMonth.reduce((s, b) => s + parseFloat(b.amount), 0);
 
   const monthOverMonth =
     lastMonthTotal > 0
       ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100
       : 0;
 
-  // Overdue bills
   const overdueBills = allBills.filter(
-    (b) =>
-      b.status === "unpaid" && b.dueDate && new Date(b.dueDate) < now
+    (b) => b.status === "unpaid" && b.dueDate && new Date(b.dueDate) < now
   );
 
-  // Category breakdown
   const categoryMap = new Map<
     string,
     { name: string; color: string; total: number; paid: number; unpaid: number; count: number }
@@ -72,10 +63,7 @@ export async function getDashboardStats() {
     const existing = categoryMap.get(cat.id) || {
       name: cat.name,
       color: cat.color || "#6366f1",
-      total: 0,
-      paid: 0,
-      unpaid: 0,
-      count: 0,
+      total: 0, paid: 0, unpaid: 0, count: 0,
     };
     existing.total += parseFloat(b.amount);
     existing.count += 1;
@@ -84,12 +72,8 @@ export async function getDashboardStats() {
     categoryMap.set(cat.id, existing);
   });
 
-  // Recent bills
   const recentBills = allBills
-    .sort(
-      (a, b) =>
-        new Date(b.receivedDate).getTime() - new Date(a.receivedDate).getTime()
-    )
+    .sort((a, b) => new Date(b.receivedDate).getTime() - new Date(a.receivedDate).getTime())
     .slice(0, 5);
 
   return {
@@ -100,10 +84,7 @@ export async function getDashboardStats() {
     paidCount: allBills.filter((b) => b.status === "paid").length,
     unpaidCount: allBills.filter((b) => b.status === "unpaid").length,
     overdueCount: overdueBills.length,
-    overdueAmount: overdueBills.reduce(
-      (s, b) => s + parseFloat(b.amount),
-      0
-    ),
+    overdueAmount: overdueBills.reduce((s, b) => s + parseFloat(b.amount), 0),
     thisMonthTotal,
     lastMonthTotal,
     monthOverMonth: Math.round(monthOverMonth * 10) / 10,
@@ -145,23 +126,12 @@ export async function getStatsData(filters: StatsFilters = {}) {
   });
 
   // Monthly bar chart data
-  const monthlyData = new Map<
-    string,
-    { month: string; paid: number; unpaid: number; total: number }
-  >();
+  const monthlyData = new Map<string, { month: string; paid: number; unpaid: number; total: number }>();
   allBills.forEach((b) => {
     const d = new Date(b.receivedDate);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const monthName = d.toLocaleDateString("en-US", {
-      month: "short",
-      year: "numeric",
-    });
-    const existing = monthlyData.get(key) || {
-      month: monthName,
-      paid: 0,
-      unpaid: 0,
-      total: 0,
-    };
+    const monthName = d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    const existing = monthlyData.get(key) || { month: monthName, paid: 0, unpaid: 0, total: 0 };
     existing.total += parseFloat(b.amount);
     if (b.status === "paid") existing.paid += parseFloat(b.amount);
     else existing.unpaid += parseFloat(b.amount);
@@ -169,18 +139,14 @@ export async function getStatsData(filters: StatsFilters = {}) {
   });
 
   // Vendor breakdown
-  const vendorTotals = new Map<
-    string,
-    { name: string; category: string; total: number; unpaid: number }
-  >();
+  const vendorTotals = new Map<string, { name: string; category: string; total: number; unpaid: number }>();
   allBills.forEach((b) => {
     const vendorName = b.vendor?.name || "No Vendor";
     const key = b.vendorId || "no-vendor";
     const existing = vendorTotals.get(key) || {
       name: vendorName,
       category: b.category?.name || "",
-      total: 0,
-      unpaid: 0,
+      total: 0, unpaid: 0,
     };
     existing.total += parseFloat(b.amount);
     if (b.status === "unpaid") existing.unpaid += parseFloat(b.amount);
@@ -188,12 +154,8 @@ export async function getStatsData(filters: StatsFilters = {}) {
   });
 
   const totalAmount = allBills.reduce((s, b) => s + parseFloat(b.amount), 0);
-  const totalPaid = allBills
-    .filter((b) => b.status === "paid")
-    .reduce((s, b) => s + parseFloat(b.amount), 0);
-  const totalUnpaid = allBills
-    .filter((b) => b.status === "unpaid")
-    .reduce((s, b) => s + parseFloat(b.amount), 0);
+  const totalPaid = allBills.filter((b) => b.status === "paid").reduce((s, b) => s + parseFloat(b.amount), 0);
+  const totalUnpaid = allBills.filter((b) => b.status === "unpaid").reduce((s, b) => s + parseFloat(b.amount), 0);
 
   return {
     totalAmount,
@@ -217,6 +179,7 @@ export async function getStatsData(filters: StatsFilters = {}) {
       note: b.note,
       imageUrl: b.imageUrl || null,
       paymentMode: b.paymentMode || null,
+      billedTo: b.billedTo || null,
       receivedDate: b.receivedDate,
       paidDate: b.paidDate,
       category: b.category
@@ -226,13 +189,11 @@ export async function getStatsData(filters: StatsFilters = {}) {
         ? { id: b.vendor.id, name: b.vendor.name }
         : null,
     })),
-    // Unique categories list for filter dropdown
     categories: Array.from(categoryTotals.entries()).map(([id, cat]) => ({
       id,
       name: cat.name,
       color: cat.color,
     })),
-    // Unique vendors list for filter dropdown
     vendors: Array.from(vendorTotals.entries()).map(([id, v]) => ({
       id,
       name: v.name,

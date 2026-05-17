@@ -36,23 +36,18 @@ export async function getBills(filters: BillFilters = {}) {
   if (status !== "all") {
     conditions.push(eq(bills.status, status));
   }
-
   if (categoryId) {
     conditions.push(eq(bills.categoryId, categoryId));
   }
-
   if (vendorId) {
     conditions.push(eq(bills.vendorId, vendorId));
   }
-
   if (from) {
     conditions.push(gte(bills.receivedDate, new Date(from)));
   }
-
   if (to) {
     conditions.push(lte(bills.receivedDate, new Date(to + "T23:59:59")));
   }
-
   if (search) {
     conditions.push(ilike(bills.note, `%${search}%`));
   }
@@ -92,6 +87,7 @@ export async function createBill(data: {
   receivedDate: string;
   dueDate?: string | null;
   isRecurring?: "none" | "daily" | "weekly" | "monthly";
+  billedTo?: "anchal_sweets" | "anchal_caterers" | null;
 }) {
   const user = await getCurrentUser();
   const validated = billSchema.parse(data);
@@ -108,6 +104,7 @@ export async function createBill(data: {
       receivedDate: new Date(validated.receivedDate),
       dueDate: validated.dueDate ? new Date(validated.dueDate) : null,
       isRecurring: validated.isRecurring,
+      billedTo: validated.billedTo || null,
       status: "unpaid",
     })
     .returning();
@@ -130,6 +127,7 @@ export async function updateBill(
     receivedDate: string;
     dueDate: string | null;
     isRecurring: "none" | "daily" | "weekly" | "monthly";
+    billedTo: "anchal_sweets" | "anchal_caterers" | null;
   }>
 ) {
   const user = await getCurrentUser();
@@ -141,11 +139,11 @@ export async function updateBill(
   if (data.amount) updateData.amount = data.amount;
   if (data.note !== undefined) updateData.note = data.note;
   if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;
-  if (data.receivedDate)
-    updateData.receivedDate = new Date(data.receivedDate);
+  if (data.receivedDate) updateData.receivedDate = new Date(data.receivedDate);
   if (data.dueDate !== undefined)
     updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
   if (data.isRecurring) updateData.isRecurring = data.isRecurring;
+  if (data.billedTo !== undefined) updateData.billedTo = data.billedTo;
 
   const [bill] = await db
     .update(bills)
@@ -162,7 +160,7 @@ export async function updateBill(
 
 export async function toggleBillStatus(
   id: string,
-  paymentMode?: "cash" | "online",
+  paymentMode?: "cash" | "upi" | "cheque" | "net_banking",
   customPaidDate?: string
 ) {
   const user = await getCurrentUser();
@@ -199,7 +197,7 @@ export async function toggleBillStatus(
 export async function bulkUpdateBillStatus(
   ids: string[],
   status: "paid" | "unpaid",
-  paymentMode?: "cash" | "online",
+  paymentMode?: "cash" | "upi" | "cheque" | "net_banking",
   customPaidDate?: string
 ) {
   const user = await getCurrentUser();

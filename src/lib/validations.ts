@@ -29,10 +29,11 @@ export const billSchema = z.object({
       message: "Amount must be a positive number",
     }),
   note: z.string().max(500).optional().nullable(),
-  imageUrl: z.string().url().optional().nullable(),
+  imageUrl: z.string().optional().nullable(),
   receivedDate: z.string().min(1, "Received date is required"),
   dueDate: z.string().optional().nullable(),
   isRecurring: z.enum(["none", "daily", "weekly", "monthly"]).default("none"),
+  billedTo: z.enum(["anchal_sweets", "anchal_caterers"]).optional().nullable(),
 });
 
 export const billUpdateSchema = billSchema.partial().extend({

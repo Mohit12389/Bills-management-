@@ -46,6 +46,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge, EmptyState, ImageUpload, ImageViewer, DateRangePicker, PaymentModeDialog } from "@/components/shared";
+import { formatPaymentMode, formatBilledTo } from "@/components/shared/payment-mode-dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { createVendor, updateVendor, deleteVendor } from "@/lib/actions/vendors";
 import { createBill, updateBill, toggleBillStatus, deleteBill } from "@/lib/actions/bills";
@@ -57,6 +58,7 @@ interface BillItem {
   imageUrl: string | null;
   status: string;
   paymentMode: string | null;
+  billedTo: string | null;
   receivedDate: Date;
   paidDate: Date | null;
   dueDate: Date | null;
@@ -109,6 +111,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
   const [billVendor, setBillVendor] = useState<string>("");
   const [billDate, setBillDate] = useState(new Date().toISOString().split("T")[0]);
   const [billDueDate, setBillDueDate] = useState("");
+  const [billBilledTo, setBillBilledTo] = useState<string>("");
 
   // ===== HELPERS =====
   const resetBillForm = () => {
@@ -118,6 +121,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
     setBillVendor("");
     setBillDate(new Date().toISOString().split("T")[0]);
     setBillDueDate("");
+    setBillBilledTo("");
     setEditingBillId(null);
   };
 
@@ -143,6 +147,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
     setBillVendor(bill.vendor?.id || "");
     setBillDate(formatDateForInput(bill.receivedDate));
     setBillDueDate(formatDateForInput(bill.dueDate));
+    setBillBilledTo(bill.billedTo || "");
     setBillDialogOpen(true);
   };
 
@@ -235,6 +240,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
           imageUrl: billImage,
           receivedDate: billDate,
           dueDate: billDueDate || null,
+          billedTo: (billBilledTo as any) || null,
         });
         toast.success("Bill updated");
       } else {
@@ -246,6 +252,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
           imageUrl: billImage,
           receivedDate: billDate,
           dueDate: billDueDate || null,
+          billedTo: (billBilledTo as any) || null,
         });
         toast.success("Bill added");
       }
@@ -260,17 +267,14 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
   };
 
   const handleToggleStatus = async (billId: string, billAmount?: string) => {
-    // Find the bill to check current status
     const bill = category.bills.find((b) => b.id === billId);
     if (!bill) return;
 
     if (bill.status === "unpaid") {
-      // Going from unpaid → paid: ask for payment mode
       setPendingPayBillId(billId);
       setPendingPayAmount(billAmount || "");
       setPaymentModeOpen(true);
     } else {
-      // Going from paid → unpaid: no dialog needed
       try {
         await toggleBillStatus(billId);
         toast.success("Marked as unpaid");
@@ -281,12 +285,12 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
     }
   };
 
-  const handlePaymentModeConfirm = async (mode: "cash" | "online", paidDate: Date) => {
+  const handlePaymentModeConfirm = async (mode: "cash" | "upi" | "cheque" | "net_banking", paidDate: Date) => {
     if (!pendingPayBillId) return;
     setPaymentModeOpen(false);
     try {
       await toggleBillStatus(pendingPayBillId, mode, paidDate.toISOString());
-      toast.success(`Marked as paid (${mode})`);
+      toast.success(`Marked as paid (${formatPaymentMode(mode)})`);
       setPendingPayBillId(null);
       setPendingPayAmount("");
       window.location.reload();
@@ -305,7 +309,6 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
     }
   };
 
-  // ===== DUPLICATE BILL (for recurring bills) =====
   const handleDuplicateBill = async (bill: BillItem) => {
     try {
       await createBill({
@@ -313,9 +316,10 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
         vendorId: bill.vendor?.id || null,
         amount: bill.amount,
         note: bill.note || null,
-        imageUrl: null, // Don't copy image to save space
+        imageUrl: null,
         receivedDate: new Date().toISOString().split("T")[0],
         dueDate: null,
+        billedTo: (bill.billedTo as any) || null,
       });
       toast.success("Bill duplicated with today's date");
       window.location.reload();
@@ -420,11 +424,9 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                     >
                       {/* Bill image thumbnail */}
                       {bill.imageUrl ? (
-                        <Image
+                        <img
                           src={bill.imageUrl}
                           alt="Bill"
-                          width={64}
-                          height={64}
                           className="bill-thumbnail"
                           onClick={() => setViewingImage(bill.imageUrl)}
                         />
@@ -446,7 +448,8 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                           {bill.vendor?.name || "No vendor"} •{" "}
                           Received {formatDate(bill.receivedDate)}
                           {bill.paidDate && ` • Paid ${formatDate(bill.paidDate)}`}
-                          {bill.paymentMode && ` (${bill.paymentMode})`}
+                          {bill.paymentMode && ` (${formatPaymentMode(bill.paymentMode)})`}
+                          {bill.billedTo && ` • ${formatBilledTo(bill.billedTo)}`}
                         </p>
                         {bill.note && (
                           <p className="mt-0.5 truncate text-xs text-muted-foreground/70">
@@ -748,6 +751,20 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                 </Select>
               </div>
             )}
+
+            {/* Billed To */}
+            <div className="form-group">
+              <Label>Billed To</Label>
+              <Select value={billBilledTo} onValueChange={setBillBilledTo}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select subsidiary" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="anchal_sweets">Anchal Sweets</SelectItem>
+                  <SelectItem value="anchal_caterers">Anchal Caterers</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="form-group">

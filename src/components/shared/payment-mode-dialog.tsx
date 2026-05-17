@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { Banknote, Smartphone, CalendarClock, Clock } from "lucide-react";
+import {
+  Banknote,
+  Smartphone,
+  FileCheck,
+  Building2,
+  CalendarClock,
+  Clock,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,12 +21,51 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+export type PaymentMode = "cash" | "upi" | "cheque" | "net_banking";
+
 interface PaymentModeDialogProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: (mode: "cash" | "online", paidDate: Date) => void;
+  onConfirm: (mode: PaymentMode, paidDate: Date) => void;
   billAmount?: string;
 }
+
+const PAYMENT_OPTIONS: {
+  value: PaymentMode;
+  label: string;
+  icon: React.ElementType;
+  activeColor: string;
+  activeBg: string;
+}[] = [
+  {
+    value: "cash",
+    label: "Cash",
+    icon: Banknote,
+    activeColor: "text-emerald-600",
+    activeBg: "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30",
+  },
+  {
+    value: "upi",
+    label: "UPI",
+    icon: Smartphone,
+    activeColor: "text-violet-600",
+    activeBg: "border-violet-500 bg-violet-50 dark:bg-violet-950/30",
+  },
+  {
+    value: "cheque",
+    label: "Cheque",
+    icon: FileCheck,
+    activeColor: "text-blue-600",
+    activeBg: "border-blue-500 bg-blue-50 dark:bg-blue-950/30",
+  },
+  {
+    value: "net_banking",
+    label: "Net Banking",
+    icon: Building2,
+    activeColor: "text-orange-600",
+    activeBg: "border-orange-500 bg-orange-50 dark:bg-orange-950/30",
+  },
+];
 
 export function PaymentModeDialog({
   open,
@@ -27,7 +73,7 @@ export function PaymentModeDialog({
   onConfirm,
   billAmount,
 }: PaymentModeDialogProps) {
-  const [selectedMode, setSelectedMode] = useState<"cash" | "online" | null>(null);
+  const [selectedMode, setSelectedMode] = useState<PaymentMode | null>(null);
   const [dateOption, setDateOption] = useState<"now" | "custom">("now");
   const [customDate, setCustomDate] = useState("");
   const [customTime, setCustomTime] = useState("");
@@ -45,7 +91,7 @@ export function PaymentModeDialog({
 
     onConfirm(selectedMode, paidDate);
 
-    // Reset state
+    // Reset
     setSelectedMode(null);
     setDateOption("now");
     setCustomDate("");
@@ -66,61 +112,48 @@ export function PaymentModeDialog({
         <DialogHeader>
           <DialogTitle>Mark as Paid</DialogTitle>
           <DialogDescription>
-            {billAmount ? `Bill amount: ${billAmount}` : "Select payment details"}
+            {billAmount
+              ? `Bill amount: ${billAmount}`
+              : "Select payment details"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
-          {/* Payment Mode */}
+          {/* Payment Mode — 4 options */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Payment Method
             </Label>
             <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setSelectedMode("cash")}
-                className={`flex h-20 flex-col items-center justify-center gap-1.5 rounded-lg border-2 transition-all ${
-                  selectedMode === "cash"
-                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
-                    : "border-border hover:border-emerald-300 hover:bg-emerald-50/50"
-                }`}
-              >
-                <Banknote
-                  className={`h-7 w-7 ${
-                    selectedMode === "cash" ? "text-emerald-600" : "text-muted-foreground"
-                  }`}
-                />
-                <span
-                  className={`text-sm font-semibold ${
-                    selectedMode === "cash" ? "text-emerald-700" : "text-foreground"
-                  }`}
-                >
-                  Cash
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedMode("online")}
-                className={`flex h-20 flex-col items-center justify-center gap-1.5 rounded-lg border-2 transition-all ${
-                  selectedMode === "online"
-                    ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-                    : "border-border hover:border-blue-300 hover:bg-blue-50/50"
-                }`}
-              >
-                <Smartphone
-                  className={`h-7 w-7 ${
-                    selectedMode === "online" ? "text-blue-600" : "text-muted-foreground"
-                  }`}
-                />
-                <span
-                  className={`text-sm font-semibold ${
-                    selectedMode === "online" ? "text-blue-700" : "text-foreground"
-                  }`}
-                >
-                  Online
-                </span>
-              </button>
+              {PAYMENT_OPTIONS.map((opt) => {
+                const isSelected = selectedMode === opt.value;
+                const Icon = opt.icon;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setSelectedMode(opt.value)}
+                    className={`flex h-20 flex-col items-center justify-center gap-1.5 rounded-lg border-2 transition-all ${
+                      isSelected
+                        ? opt.activeBg
+                        : "border-border hover:border-muted-foreground/30 hover:bg-muted/50"
+                    }`}
+                  >
+                    <Icon
+                      className={`h-7 w-7 ${
+                        isSelected ? opt.activeColor : "text-muted-foreground"
+                      }`}
+                    />
+                    <span
+                      className={`text-sm font-semibold ${
+                        isSelected ? opt.activeColor : "text-foreground"
+                      }`}
+                    >
+                      {opt.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -141,7 +174,9 @@ export function PaymentModeDialog({
               >
                 <Clock
                   className={`h-4 w-4 ${
-                    dateOption === "now" ? "text-primary" : "text-muted-foreground"
+                    dateOption === "now"
+                      ? "text-primary"
+                      : "text-muted-foreground"
                   }`}
                 />
                 <span className="text-sm font-medium">Now</span>
@@ -157,7 +192,9 @@ export function PaymentModeDialog({
               >
                 <CalendarClock
                   className={`h-4 w-4 ${
-                    dateOption === "custom" ? "text-primary" : "text-muted-foreground"
+                    dateOption === "custom"
+                      ? "text-primary"
+                      : "text-muted-foreground"
                   }`}
                 />
                 <span className="text-sm font-medium">Select Date</span>
@@ -196,7 +233,9 @@ export function PaymentModeDialog({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={!selectedMode || (dateOption === "custom" && !customDate)}
+            disabled={
+              !selectedMode || (dateOption === "custom" && !customDate)
+            }
           >
             Confirm Payment
           </Button>
@@ -204,4 +243,26 @@ export function PaymentModeDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+// ===== HELPER: Format payment mode for display =====
+export function formatPaymentMode(mode: string | null): string {
+  if (!mode) return "—";
+  const map: Record<string, string> = {
+    cash: "Cash",
+    upi: "UPI",
+    cheque: "Cheque",
+    net_banking: "Net Banking",
+  };
+  return map[mode] || mode;
+}
+
+// ===== HELPER: Format billed-to for display =====
+export function formatBilledTo(billedTo: string | null): string {
+  if (!billedTo) return "—";
+  const map: Record<string, string> = {
+    anchal_sweets: "Anchal Sweets",
+    anchal_caterers: "Anchal Caterers",
+  };
+  return map[billedTo] || billedTo;
 }

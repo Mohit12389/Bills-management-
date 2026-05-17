@@ -18,7 +18,16 @@ export const recurringTypeEnum = pgEnum("recurring_type", [
   "weekly",
   "monthly",
 ]);
-export const paymentModeEnum = pgEnum("payment_mode", ["cash", "online"]);
+export const paymentModeEnum = pgEnum("payment_mode", [
+  "cash",
+  "upi",
+  "cheque",
+  "net_banking",
+]);
+export const billedToEnum = pgEnum("billed_to", [
+  "anchal_sweets",
+  "anchal_caterers",
+]);
 
 // Users table (synced with Clerk via webhook)
 export const users = pgTable("users", {
@@ -76,6 +85,7 @@ export const bills = pgTable("bills", {
   imageUrl: text("image_url"),
   status: billStatusEnum("status").default("unpaid").notNull(),
   paymentMode: paymentModeEnum("payment_mode"),
+  billedTo: billedToEnum("billed_to"),
   receivedDate: timestamp("received_date").notNull(),
   paidDate: timestamp("paid_date"),
   dueDate: timestamp("due_date"),
