@@ -63,7 +63,12 @@ export async function getBills(filters: BillFilters = {}) {
     offset: (page - 1) * limit,
   });
 
-  return result;
+  // Strip full base64 image data — replace with hasImage flag
+  // Images are loaded on-demand via /api/bills/image/[id]
+  return result.map((bill) => ({
+    ...bill,
+    imageUrl: bill.imageUrl ? "has_image" : null,
+  }));
 }
 
 export async function getBillById(id: string) {

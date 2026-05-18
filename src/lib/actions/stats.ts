@@ -12,11 +12,31 @@ export interface StatsFilters {
   month?: number;
 }
 
+// Columns to fetch — everything EXCEPT imageUrl
+const billColumnsNoImage = {
+  id: true,
+  userId: true,
+  categoryId: true,
+  vendorId: true,
+  amount: true,
+  note: true,
+  status: true,
+  paymentMode: true,
+  billedTo: true,
+  receivedDate: true,
+  paidDate: true,
+  dueDate: true,
+  isRecurring: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 export async function getDashboardStats() {
   const user = await getCurrentUser();
 
   const allBills = await db.query.bills.findMany({
     where: eq(bills.userId, user.id),
+    columns: billColumnsNoImage,
     with: { category: true },
   });
 
@@ -33,13 +53,8 @@ export async function getDashboardStats() {
   });
 
   const totalAmount = allBills.reduce((s, b) => s + parseFloat(b.amount), 0);
-  const totalPaid = allBills
-    .filter((b) => b.status === "paid")
-    .reduce((s, b) => s + parseFloat(b.amount), 0);
-  const totalUnpaid = allBills
-    .filter((b) => b.status === "unpaid")
-    .reduce((s, b) => s + parseFloat(b.amount), 0);
-
+  const totalPaid = allBills.filter((b) => b.status === "paid").reduce((s, b) => s + parseFloat(b.amount), 0);
+  const totalUnpaid = allBills.filter((b) => b.status === "unpaid").reduce((s, b) => s + parseFloat(b.amount), 0);
   const thisMonthTotal = thisMonth.reduce((s, b) => s + parseFloat(b.amount), 0);
   const lastMonthTotal = lastMonth.reduce((s, b) => s + parseFloat(b.amount), 0);
 
@@ -107,6 +122,7 @@ export async function getStatsData(filters: StatsFilters = {}) {
 
   const allBills = await db.query.bills.findMany({
     where: and(...conditions),
+    columns: billColumnsNoImage,
     with: { category: true, vendor: true },
     orderBy: [desc(bills.receivedDate)],
   });
@@ -171,13 +187,13 @@ export async function getStatsData(filters: StatsFilters = {}) {
     vendorBreakdown: Array.from(vendorTotals.values())
       .sort((a, b) => b.total - a.total)
       .slice(0, 15),
-    // Raw bills for export and client-side filtering
+    // Bills for export — hasImage flag instead of full base64
     allBills: allBills.map((b) => ({
       id: b.id,
       amount: b.amount,
       status: b.status,
       note: b.note,
-      imageUrl: b.imageUrl || null,
+      imageUrl: "has_image", // flag only — actual image via /api/bills/image/[id]
       paymentMode: b.paymentMode || null,
       billedTo: b.billedTo || null,
       receivedDate: b.receivedDate,

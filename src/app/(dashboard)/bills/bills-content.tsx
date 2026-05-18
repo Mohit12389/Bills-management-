@@ -542,12 +542,12 @@ export function BillsContent({
                   />
 
                   {bill.imageUrl ? (
-                    <img
-                      src={bill.imageUrl}
-                      alt="Bill"
-                      className="bill-thumbnail"
-                      onClick={() => setViewingImage(bill.imageUrl)}
-                    />
+  <div
+    className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-md border bg-emerald-50 sm:h-16 sm:w-16"
+    onClick={() => setViewingImage(`/api/bills/image/${bill.id}`)}
+  >
+    <ImageIcon className="h-5 w-5 text-emerald-600" />
+  </div>
                   ) : (
                     <div className="flex h-12 w-12 items-center justify-center rounded-md border bg-muted sm:h-16 sm:w-16">
                       <ImageIcon className="h-5 w-5 text-muted-foreground/50" />
