@@ -18,6 +18,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { ImageUpload } from "@/components/shared";
+import { updateBill } from "@/lib/actions/bills";
 import {
   Select,
   SelectContent,
@@ -95,6 +99,17 @@ export function BillsContent({
   const [pendingPayAmount, setPendingPayAmount] = useState<string>("");
   const [pendingBulkPay, setPendingBulkPay] = useState(false);
   const [isEditingPayment, setIsEditingPayment] = useState(false);
+
+  // Edit bill dialog
+  const [editBillOpen, setEditBillOpen] = useState(false);
+  const [editBillId, setEditBillId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [editImage, setEditImage] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editBilledTo, setEditBilledTo] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Bulk confirmation dialog
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
@@ -305,6 +320,54 @@ export function BillsContent({
     setDateFrom("");
     setDateTo("");
     setSearchQuery("");
+  };
+
+  // ===== EDIT BILL =====
+  const openEditBill = (bill: BillWithRelations) => {
+    setEditBillId(bill.id);
+    setEditAmount(bill.amount);
+    setEditNote(bill.note || "");
+    setEditImage(bill.imageUrl || null);
+    setEditDate(bill.receivedDate ? new Date(bill.receivedDate).toISOString().split("T")[0] : "");
+    setEditDueDate(bill.dueDate ? new Date(bill.dueDate).toISOString().split("T")[0] : "");
+    setEditBilledTo(bill.billedTo || "");
+    setEditBillOpen(true);
+  };
+
+  const handleEditBillSubmit = async () => {
+    if (!editBillId || !editAmount || !editDate) return;
+    setEditSubmitting(true);
+    try {
+      await updateBill(editBillId, {
+        amount: editAmount,
+        note: editNote || null,
+        imageUrl: editImage,
+        receivedDate: editDate,
+        dueDate: editDueDate || null,
+        billedTo: (editBilledTo as any) || null,
+      });
+      setBills((prev) =>
+        prev.map((b) =>
+          b.id === editBillId
+            ? {
+                ...b,
+                amount: editAmount,
+                note: editNote || null,
+                imageUrl: editImage,
+                receivedDate: new Date(editDate),
+                dueDate: editDueDate ? new Date(editDueDate) : null,
+                billedTo: editBilledTo || null,
+              }
+            : b
+        )
+      );
+      setEditBillOpen(false);
+      toast.success("Bill updated");
+    } catch {
+      toast.error("Failed to update bill");
+    } finally {
+      setEditSubmitting(false);
+    }
   };
 
   return (
@@ -528,9 +591,7 @@ export function BillsContent({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {/* Edit bill — available for both paid and unpaid */}
-                      <DropdownMenuItem onClick={() => {
-                        window.location.href = `/categories/${bill.category?.id}`;
-                      }}>
+                      <DropdownMenuItem onClick={() => openEditBill(bill)}>
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit Bill
                       </DropdownMenuItem>
@@ -654,6 +715,85 @@ export function BillsContent({
               {bulkConfirmAction === "paid"
                 ? `Mark ${selectedIds.size} Bills Paid`
                 : `Mark ${selectedPaidCount} Bill${selectedPaidCount > 1 ? "s" : ""} Unpaid`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== EDIT BILL DIALOG ===== */}
+      <Dialog open={editBillOpen} onOpenChange={(open) => { setEditBillOpen(open); if (!open) setEditBillId(null); }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Bill</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="form-group">
+              <Label>Amount (₹) *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <Label>Billed To</Label>
+              <Select value={editBilledTo} onValueChange={setEditBilledTo}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select subsidiary" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="anchal_sweets">Anchal Sweets</SelectItem>
+                  <SelectItem value="anchal_caterers">Anchal Caterers</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="form-group">
+                <Label>Received Date *</Label>
+                <Input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <Label>Due Date</Label>
+                <Input
+                  type="date"
+                  value={editDueDate}
+                  onChange={(e) => setEditDueDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <Label>Note</Label>
+              <Textarea
+                placeholder="Optional note..."
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                rows={2}
+              />
+            </div>
+
+            <div className="form-group">
+              <Label>Bill Image</Label>
+              <ImageUpload value={editImage} onChange={setEditImage} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditBillOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditBillSubmit}
+              disabled={editSubmitting || !editAmount || !editDate}
+            >
+              {editSubmitting ? "Saving..." : "Update Bill"}
             </Button>
           </DialogFooter>
         </DialogContent>

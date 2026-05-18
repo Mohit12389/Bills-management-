@@ -192,12 +192,21 @@ export function StatsContent({
       totalAmount: computed.totalAmount,
       totalPaid: computed.totalPaid,
       totalUnpaid: computed.totalUnpaid,
-      categoryBreakdown: computed.categoryPieData.map((cat) => ({
-        name: cat.name,
-        total: cat.value,
-        paid: 0,
-        unpaid: 0,
-      })),
+      categoryBreakdown: computed.categoryPieData.map((cat) => {
+  const catBills = filteredBills.filter((b) => b.category?.name === cat.name);
+  const paid = catBills
+    .filter((b) => b.status === "paid")
+    .reduce((s, b) => s + parseFloat(b.amount), 0);
+  const unpaid = catBills
+    .filter((b) => b.status === "unpaid")
+    .reduce((s, b) => s + parseFloat(b.amount), 0);
+  return {
+    name: cat.name,
+    total: cat.value,
+    paid,
+    unpaid,
+  };
+}),
     };
   };
 
@@ -497,12 +506,12 @@ export function StatsContent({
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Vendor</th>
-                    <th>Category</th>
-                    <th className="text-right">Total</th>
-                    <th className="text-right">Unpaid</th>
-                    <th className="w-32">% of Spend</th>
-                  </tr>
+                     <th style={{ width: "25%" }}>Vendor</th>
+                     <th style={{ width: "20%" }}>Category</th>
+                     <th style={{ width: "20%" }} className="text-left">Total</th>
+                     <th style={{ width: "20%" }} className="text-left">Unpaid</th>
+                     <th style={{ width: "15%" }}>% of Spend</th>
+                   </tr>
                 </thead>
                 <tbody>
                   {computed.vendorBreakdown.map((vendor, i) => {
@@ -511,8 +520,8 @@ export function StatsContent({
                       <tr key={i}>
                         <td className="font-medium">{vendor.name}</td>
                         <td className="text-muted-foreground">{vendor.category}</td>
-                        <td className="text-right font-semibold tabular-nums">{formatCurrency(vendor.total)}</td>
-                        <td className="text-right tabular-nums text-amber-600">{formatCurrency(vendor.unpaid)}</td>
+                        <td className="text-left font-semibold tabular-nums">{formatCurrency(vendor.total)}</td>
+                        <td className="text-left tabular-nums text-amber-600">{formatCurrency(vendor.unpaid)}</td>
                         <td>
                           <div className="flex items-center gap-2">
                             <Progress value={percent} className="h-2" />

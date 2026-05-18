@@ -6,7 +6,7 @@
 👉 [**View Android Repository**](https://github.com/Mohit12389/Bill-Management-System)
 
 
-A full-stack bill management system built for sweet shops to track raw material purchases, manage vendor payments, and get spending insights.
+A full-stack bill management system built for businesses to track raw material purchases, manage vendor payments, and get spending insights.
 
 **Tech Stack:** Next.js 14 • TypeScript • React • shadcn/ui • Tailwind CSS • Neon (PostgreSQL) • Drizzle ORM • Clerk Auth • Recharts
 
