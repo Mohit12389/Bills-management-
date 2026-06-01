@@ -34,6 +34,7 @@ export const billSchema = z.object({
   dueDate: z.string().optional().nullable(),
   isRecurring: z.enum(["none", "daily", "weekly", "monthly"]).default("none"),
   billedTo: z.enum(["anchal_sweets", "anchal_caterers"]).optional().nullable(),
+  invoiceNumber: z.string().max(100).optional().nullable(),
 });
 
 export const billUpdateSchema = billSchema.partial().extend({

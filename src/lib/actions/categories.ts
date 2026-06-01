@@ -24,8 +24,18 @@ export async function getCategoriesWithStats() {
   const result = await db.query.categories.findMany({
     where: eq(categories.userId, user.id),
     with: {
-      bills: true,
-      vendors: true,
+      bills: {
+        columns: {
+          id: true,
+          amount: true,
+          status: true,
+        },
+      },
+      vendors: {
+        columns: {
+          id: true,
+        },
+      },
     },
     orderBy: (categories, { asc }) => [asc(categories.name)],
   });
@@ -55,6 +65,22 @@ export async function getCategoryById(id: string) {
     with: {
       vendors: true,
       bills: {
+        columns: {
+          id: true,
+          userId: true,
+          categoryId: true,
+          vendorId: true,
+          amount: true,
+          note: true,
+          status: true,
+          paymentMode: true,
+          billedTo: true,
+          receivedDate: true,
+          paidDate: true,
+          dueDate: true,
+          isRecurring: true,
+          // imageUrl deliberately excluded
+        },
         with: {
           vendor: true,
         },
@@ -63,7 +89,36 @@ export async function getCategoryById(id: string) {
     },
   });
 
-  return result;
+  if (!result) return result;
+
+  // Add hasImage flag by checking which bills have images
+  // This avoids fetching full base64 data
+  const billIds = result.bills.map((b) => b.id);
+
+  let imageMap = new Map<string, boolean>();
+  if (billIds.length > 0) {
+    const imageCheck = await db.query.bills.findMany({
+      where: and(
+        eq(bills.userId, user.id),
+        eq(bills.categoryId, id)
+      ),
+      columns: {
+        id: true,
+        imageUrl: true,
+      },
+    });
+    imageCheck.forEach((b) => {
+      imageMap.set(b.id, !!b.imageUrl);
+    });
+  }
+
+  return {
+    ...result,
+    bills: result.bills.map((b) => ({
+      ...b,
+      imageUrl: imageMap.get(b.id) ? "has_image" : null,
+    })),
+  };
 }
 
 export async function createCategory(data: { name: string; icon?: string; color?: string }) {

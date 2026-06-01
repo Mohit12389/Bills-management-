@@ -11,6 +11,7 @@ interface ReportBill {
   imageUrl?: string | null;
   paymentMode?: string | null;
   billedTo?: string | null;
+  invoiceNumber?: string | null;
   receivedDate: Date;
   paidDate: Date | null;
   category?: { name: string } | null;
@@ -59,6 +60,7 @@ export function exportToCSV(data: ReportData) {
     "Category",
     "Vendor",
     "Billed To",
+    "Invoice No",
     "Amount",
     "Status",
     "Payment Mode",
@@ -73,6 +75,7 @@ export function exportToCSV(data: ReportData) {
       bill.category?.name || "Uncategorized",
       bill.vendor?.name || "No vendor",
       formatBilledTo(bill.billedTo || null),
+      bill.invoiceNumber || "",
       bill.amount,
       bill.status.toUpperCase(),
       bill.status === "paid" ? formatPaymentMode(bill.paymentMode || null) : "",
@@ -98,6 +101,8 @@ export function exportToCSV(data: ReportData) {
   const caterersCount = data.bills.filter((b) => b.billedTo === "anchal_caterers").length;
   const sweetsTotal = data.bills.filter((b) => b.billedTo === "anchal_sweets").reduce((s, b) => s + parseFloat(b.amount), 0);
   const caterersTotal = data.bills.filter((b) => b.billedTo === "anchal_caterers").reduce((s, b) => s + parseFloat(b.amount), 0);
+  const caterersOriginalCount = data.bills.filter((b) => b.billedTo === "anchal_caterers_original").length;
+  const caterersOriginalTotal = data.bills.filter((b) => b.billedTo === "anchal_caterers_original").reduce((s, b) => s + parseFloat(b.amount), 0);
 
   const summaryRows = [
     "",
@@ -116,6 +121,7 @@ export function exportToCSV(data: ReportData) {
     "BILLED TO BREAKDOWN,,,,,,,,,",
     `Anchal Sweets,,,,,${sweetsCount} bills,${csvEscape(formatCurrency(sweetsTotal))},,,`,
     `Anchal Caterers,,,,,${caterersCount} bills,${csvEscape(formatCurrency(caterersTotal))},,,`,
+    `Anchal Caterers (Original),,,,,${caterersOriginalCount} bills,${csvEscape(formatCurrency(caterersOriginalTotal))},,,`,
   ];
 
   const categoryRows: string[] = [""];
@@ -151,6 +157,8 @@ export function exportToPrintablePDF(data: ReportData) {
 
   const sweetsTotal = data.bills.filter((b) => b.billedTo === "anchal_sweets").reduce((s, b) => s + parseFloat(b.amount), 0);
   const caterersTotal = data.bills.filter((b) => b.billedTo === "anchal_caterers").reduce((s, b) => s + parseFloat(b.amount), 0);
+  const caterersOriginalCount = data.bills.filter((b) => b.billedTo === "anchal_caterers_original").length;
+  const caterersOriginalTotal = data.bills.filter((b) => b.billedTo === "anchal_caterers_original").reduce((s, b) => s + parseFloat(b.amount), 0);
 
   const html = `
 <!DOCTYPE html>
@@ -194,6 +202,7 @@ export function exportToPrintablePDF(data: ReportData) {
     .footer { text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid #eee; color: #999; font-size: 9px; }
     .img-link { color: #e5651f; text-decoration: none; font-weight: 600; font-size: 8px; border: 1px solid #e5651f; padding: 1px 5px; border-radius: 3px; }
     .no-img { color: #ccc; font-size: 8px; }
+    .invoice { color: #555; font-family: monospace; font-size: 8px; }
     @media print { body { padding: 12px; } }
   </style>
 </head>
@@ -244,6 +253,10 @@ export function exportToPrintablePDF(data: ReportData) {
       <div class="label">Anchal Caterers</div>
       <div class="value">${formatCurrency(caterersTotal)}</div>
     </div>
+    <div class="summary-card caterers">
+      <div class="label">Anchal Caterers (Org)</div>
+      <div class="value">${formatCurrency(caterersOriginalTotal)}</div>
+    </div>
   </div>
 
   ${data.categoryBreakdown.length > 0 ? `
@@ -265,6 +278,7 @@ export function exportToPrintablePDF(data: ReportData) {
         <th>Category</th>
         <th>Vendor</th>
         <th>Billed To</th>
+        <th>Invoice No</th>
         <th style="text-align:right">Amount</th>
         <th>Status</th>
         <th>Mode</th>
@@ -292,6 +306,7 @@ export function exportToPrintablePDF(data: ReportData) {
         <td>${bill.category?.name || "—"}</td>
         <td>${bill.vendor?.name || "—"}</td>
         <td class="${billedClass}">${billedText}</td>
+        <td class="invoice">${bill.invoiceNumber || "—"}</td>
         <td class="amount">${formatCurrency(bill.amount)}</td>
         <td class="${bill.status === "paid" ? "status-paid" : "status-unpaid"}">${bill.status.toUpperCase()}</td>
         <td class="${modeClass}">${modeText}</td>

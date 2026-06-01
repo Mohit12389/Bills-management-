@@ -59,6 +59,7 @@ interface BillItem {
   status: string;
   paymentMode: string | null;
   billedTo: string | null;
+  invoiceNumber: string | null;
   receivedDate: Date;
   paidDate: Date | null;
   dueDate: Date | null;
@@ -111,11 +112,13 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
   const [billVendor, setBillVendor] = useState<string>("");
   const [billDate, setBillDate] = useState(new Date().toISOString().split("T")[0]);
   const [billDueDate, setBillDueDate] = useState("");
+  const [billInvoiceNumber, setBillInvoiceNumber] = useState("");
   const [billBilledTo, setBillBilledTo] = useState<string>("");
 
   // ===== HELPERS =====
   const resetBillForm = () => {
     setBillAmount("");
+    setBillInvoiceNumber("");
     setBillNote("");
     setBillImage(null);
     setBillVendor("");
@@ -141,6 +144,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
   // ===== OPEN EDIT BILL DIALOG =====
   const openEditBill = (bill: BillItem) => {
     setEditingBillId(bill.id);
+    setBillInvoiceNumber((bill as any).invoiceNumber || "");
     setBillAmount(bill.amount);
     setBillNote(bill.note || "");
     setBillImage(bill.imageUrl || null);
@@ -235,6 +239,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
         await updateBill(editingBillId, {
           categoryId: category.id,
           vendorId: billVendor || null,
+          invoiceNumber: billInvoiceNumber || null,
           amount: billAmount,
           note: billNote || null,
           imageUrl: billImage,
@@ -247,6 +252,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
         await createBill({
           categoryId: category.id,
           vendorId: billVendor || null,
+          invoiceNumber: billInvoiceNumber || null,
           amount: billAmount,
           note: billNote || null,
           imageUrl: billImage,
@@ -320,6 +326,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
         receivedDate: new Date().toISOString().split("T")[0],
         dueDate: null,
         billedTo: (bill.billedTo as any) || null,
+        invoiceNumber: bill.invoiceNumber || null,
       });
       toast.success("Bill duplicated with today's date");
       window.location.reload();
@@ -451,11 +458,17 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                           {bill.paymentMode && ` (${formatPaymentMode(bill.paymentMode)})`}
                           {bill.billedTo && ` • ${formatBilledTo(bill.billedTo)}`}
                         </p>
-                        {bill.note && (
-                          <p className="mt-0.5 truncate text-xs text-muted-foreground/70">
-                            {bill.note}
-                          </p>
-                        )}
+                        
+                        {(bill as any).invoiceNumber && (
+  <p className="mt-0.5 text-xs font-medium text-muted-foreground">
+    Invoice: {(bill as any).invoiceNumber}
+  </p>
+)}
+{bill.note && (
+  <p className="mt-0.5 truncate text-xs text-muted-foreground/70">
+    {bill.note}
+  </p>
+)}
                       </div>
 
                       {/* Actions */}
@@ -733,6 +746,14 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                 onChange={(e) => setBillAmount(e.target.value)}
               />
             </div>
+            <div className="form-group">
+  <Label>Invoice Number</Label>
+  <Input
+    placeholder="e.g., INV-2024-001 (optional)"
+    value={billInvoiceNumber}
+    onChange={(e) => setBillInvoiceNumber(e.target.value)}
+  />
+</div>
 
             {category.vendors.length > 0 && (
               <div className="form-group">
@@ -762,6 +783,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                 <SelectContent>
                   <SelectItem value="anchal_sweets">Anchal Sweets</SelectItem>
                   <SelectItem value="anchal_caterers">Anchal Caterers</SelectItem>
+                  <SelectItem value="anchal_caterers_original">Anchal Caterers (original)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

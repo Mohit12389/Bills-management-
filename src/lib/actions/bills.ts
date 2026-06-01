@@ -86,6 +86,7 @@ export async function getBillById(id: string) {
 export async function createBill(data: {
   categoryId: string;
   vendorId?: string | null;
+  invoiceNumber?: string | null;
   amount: string;
   note?: string | null;
   imageUrl?: string | null;
@@ -103,6 +104,7 @@ export async function createBill(data: {
       userId: user.id,
       categoryId: validated.categoryId,
       vendorId: validated.vendorId || null,
+      invoiceNumber: data.invoiceNumber || null,
       amount: validated.amount,
       note: validated.note,
       imageUrl: validated.imageUrl,
@@ -126,6 +128,7 @@ export async function updateBill(
   data: Partial<{
     categoryId: string;
     vendorId: string | null;
+    invoiceNumber?: string | null;
     amount: string;
     note: string | null;
     imageUrl: string | null;
@@ -141,6 +144,7 @@ export async function updateBill(
 
   if (data.categoryId) updateData.categoryId = data.categoryId;
   if (data.vendorId !== undefined) updateData.vendorId = data.vendorId;
+  if (data.invoiceNumber !== undefined) updateData.invoiceNumber = data.invoiceNumber;
   if (data.amount) updateData.amount = data.amount;
   if (data.note !== undefined) updateData.note = data.note;
   if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;

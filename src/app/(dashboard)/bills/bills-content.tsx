@@ -68,6 +68,7 @@ interface BillWithRelations {
   status: string;
   paymentMode: string | null;
   billedTo: string | null;
+  invoiceNumber: string | null;
   receivedDate: Date;
   paidDate: Date | null;
   dueDate: Date | null;
@@ -109,6 +110,7 @@ export function BillsContent({
   const [editDate, setEditDate] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
   const [editBilledTo, setEditBilledTo] = useState("");
+  const [editInvoiceNumber, setEditInvoiceNumber] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Bulk confirmation dialog
@@ -331,6 +333,7 @@ export function BillsContent({
     setEditDate(bill.receivedDate ? new Date(bill.receivedDate).toISOString().split("T")[0] : "");
     setEditDueDate(bill.dueDate ? new Date(bill.dueDate).toISOString().split("T")[0] : "");
     setEditBilledTo(bill.billedTo || "");
+    setEditInvoiceNumber(bill.invoiceNumber || "");
     setEditBillOpen(true);
   };
 
@@ -345,6 +348,7 @@ export function BillsContent({
         receivedDate: editDate,
         dueDate: editDueDate || null,
         billedTo: (editBilledTo as any) || null,
+        invoiceNumber: editInvoiceNumber || null,
       });
       setBills((prev) =>
         prev.map((b) =>
@@ -357,6 +361,7 @@ export function BillsContent({
                 receivedDate: new Date(editDate),
                 dueDate: editDueDate ? new Date(editDueDate) : null,
                 billedTo: editBilledTo || null,
+                invoiceNumber: editInvoiceNumber || null,
               }
             : b
         )
@@ -572,6 +577,9 @@ export function BillsContent({
                       {bill.paymentMode && ` (${formatPaymentMode(bill.paymentMode)})`}
                       {bill.billedTo && ` • ${formatBilledTo(bill.billedTo)}`}
                     </p>
+                    {bill.invoiceNumber && (
+                      <p className="mt-0.5 text-xs font-medium text-muted-foreground">Invoice: {bill.invoiceNumber}</p>
+                    )}
                     {bill.note && (
                       <p className="mt-0.5 truncate text-xs text-muted-foreground/70">{bill.note}</p>
                     )}
@@ -737,6 +745,14 @@ export function BillsContent({
                 onChange={(e) => setEditAmount(e.target.value)}
               />
             </div>
+            <div className="form-group">
+              <Label>Invoice Number</Label>
+              <Input
+                placeholder="e.g., INV-2024-001 (optional)"
+                value={editInvoiceNumber}
+                onChange={(e) => setEditInvoiceNumber(e.target.value)}
+              />
+            </div>
 
             <div className="form-group">
               <Label>Billed To</Label>
@@ -747,6 +763,7 @@ export function BillsContent({
                 <SelectContent>
                   <SelectItem value="anchal_sweets">Anchal Sweets</SelectItem>
                   <SelectItem value="anchal_caterers">Anchal Caterers</SelectItem>
+                  <SelectItem value="anchal_caterers_original">Anchal Caterers (original) </SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -27,6 +27,7 @@ export const paymentModeEnum = pgEnum("payment_mode", [
 export const billedToEnum = pgEnum("billed_to", [
   "anchal_sweets",
   "anchal_caterers",
+  "anchal_caterers_original",
 ]);
 
 // Users table (synced with Clerk via webhook)
@@ -86,6 +87,7 @@ export const bills = pgTable("bills", {
   status: billStatusEnum("status").default("unpaid").notNull(),
   paymentMode: paymentModeEnum("payment_mode"),
   billedTo: billedToEnum("billed_to"),
+  invoiceNumber: text("invoice_number"),
   receivedDate: timestamp("received_date").notNull(),
   paidDate: timestamp("paid_date"),
   dueDate: timestamp("due_date"),

@@ -19,6 +19,7 @@ const billColumnsNoImage = {
   categoryId: true,
   vendorId: true,
   amount: true,
+  invoiceNumber: true,
   note: true,
   status: true,
   paymentMode: true,
@@ -193,6 +194,7 @@ export async function getStatsData(filters: StatsFilters = {}) {
       amount: b.amount,
       status: b.status,
       note: b.note,
+      invoiceNumber: b.invoiceNumber || null,
       imageUrl: "has_image", // flag only — actual image via /api/bills/image/[id]
       paymentMode: b.paymentMode || null,
       billedTo: b.billedTo || null,

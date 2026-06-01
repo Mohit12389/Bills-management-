@@ -263,6 +263,7 @@ export function formatBilledTo(billedTo: string | null): string {
   const map: Record<string, string> = {
     anchal_sweets: "Anchal Sweets",
     anchal_caterers: "Anchal Caterers",
+    anchal_caterers_original: "Anchal Caterers (original)",
   };
   return map[billedTo] || billedTo;
 }
