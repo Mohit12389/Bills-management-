@@ -53,6 +53,8 @@ export function NewBillForm({
   );
   const [dueDate, setDueDate] = useState("");
   const [recurring, setRecurring] = useState<string>("none");
+  const [billedTo, setBilledTo] = useState<string>("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
 
   // Filter vendors by selected category
   const filteredVendors = useMemo(
@@ -77,6 +79,8 @@ export function NewBillForm({
         receivedDate,
         dueDate: dueDate || null,
         isRecurring: recurring as any,
+        billedTo: (billedTo as any) || null,
+        invoiceNumber: invoiceNumber || null,
       });
       toast.success("Bill added successfully!");
       router.push("/bills");
@@ -168,6 +172,32 @@ export function NewBillForm({
               className="text-lg font-semibold"
             />
           </div>
+
+          {/* Invoice Number */}
+          <div className="form-group">
+            <Label>Invoice Number</Label>
+            <Input
+              placeholder="e.g., INV-2024-001 (optional)"
+              value={invoiceNumber}
+              onChange={(e) => setInvoiceNumber(e.target.value)}
+            />
+          </div>
+
+          {/* Billed To */}
+          <div className="form-group">
+            <Label>Billed To</Label>
+            <Select value={billedTo} onValueChange={setBilledTo}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select subsidiary" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="anchal_sweets">Anchal Sweets</SelectItem>
+                <SelectItem value="anchal_caterers">Anchal Caterers</SelectItem>
+                <SelectItem value="anchal_caterers_original">Anchal Caterers (Original)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
 
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
