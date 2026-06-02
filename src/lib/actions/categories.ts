@@ -72,6 +72,7 @@ export async function getCategoryById(id: string) {
           vendorId: true,
           amount: true,
           note: true,
+          invoiceNumber: true,
           status: true,
           paymentMode: true,
           billedTo: true,
