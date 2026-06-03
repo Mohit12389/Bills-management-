@@ -33,7 +33,7 @@ export const billSchema = z.object({
   receivedDate: z.string().min(1, "Received date is required"),
   dueDate: z.string().optional().nullable(),
   isRecurring: z.enum(["none", "daily", "weekly", "monthly"]).default("none"),
-  billedTo: z.enum(["anchal_sweets", "anchal_caterers"]).optional().nullable(),
+  billedTo: z.enum(["anchal_sweets", "anchal_caterers", "anchal_caterers_original"]).optional().nullable(),
   invoiceNumber: z.string().max(100).optional().nullable(),
 });
 
