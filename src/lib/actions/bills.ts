@@ -58,7 +58,7 @@ export async function getBills(filters: BillFilters = {}) {
       category: true,
       vendor: true,
     },
-    orderBy: [desc(bills.receivedDate)],
+    orderBy: [desc(bills.createdAt)],
     // limit,
     // offset: (page - 1) * limit,
     // No limit — all bills loaded, filtered client-side
