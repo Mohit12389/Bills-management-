@@ -28,7 +28,7 @@ export async function getBills(filters: BillFilters = {}) {
     to,
     search,
     page = 1,
-    limit = 50,
+    limit = 10000,
   } = filters;
 
   const conditions = [eq(bills.userId, user.id)];
@@ -59,8 +59,9 @@ export async function getBills(filters: BillFilters = {}) {
       vendor: true,
     },
     orderBy: [desc(bills.receivedDate)],
-    limit,
-    offset: (page - 1) * limit,
+    // limit,
+    // offset: (page - 1) * limit,
+    // No limit — all bills loaded, filtered client-side
   });
 
   // Strip full base64 image data — replace with hasImage flag
