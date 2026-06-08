@@ -785,7 +785,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                   <SelectItem value="anchal_caterers">Anchal Caterers</SelectItem>
                   <SelectItem value="anchal_caterers_original">Anchal Caterers (original)</SelectItem>
                 </SelectContent>
-              </Select>\
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
