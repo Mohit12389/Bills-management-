@@ -5,6 +5,9 @@ import { eq } from "drizzle-orm";
 import { createHash } from "crypto";
 import { getViewUrl } from "@/lib/r2";
 
+// Always run on request with fresh data — never serve a cached answer for which file a bill uses
+export const dynamic = "force-dynamic";
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Signed R2 links are valid for 1 hour
