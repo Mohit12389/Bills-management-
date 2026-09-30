@@ -3,8 +3,10 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
-export async function getCurrentUser() {
+// Wrapped in React cache() so parallel data loaders on one page share a single DB lookup per request
+export const getCurrentUser = cache(async function getCurrentUser() {
   const { userId } = auth();
 
   if (!userId) {
@@ -36,7 +38,7 @@ export async function getCurrentUser() {
     .returning();
 
   return created;
-}
+});
 
 export async function getClerkUserId(): Promise<string> {
   const { userId } = auth();

@@ -30,6 +30,7 @@ export const billSchema = z.object({
     }),
   note: z.string().max(500).optional().nullable(),
   imageUrl: z.string().optional().nullable(),
+  imageKey: z.string().max(200).optional().nullable(),
   receivedDate: z.string().min(1, "Received date is required"),
   dueDate: z.string().optional().nullable(),
   isRecurring: z.enum(["none", "daily", "weekly", "monthly"]).default("none"),

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   ArrowLeft,
@@ -83,6 +84,8 @@ interface CategoryDetail {
 }
 
 export function CategoryDetailContent({ category }: { category: CategoryDetail }) {
+  const router = useRouter();
+
   // ===== DIALOG STATES =====
   const [vendorDialogOpen, setVendorDialogOpen] = useState(false);
   const [billDialogOpen, setBillDialogOpen] = useState(false);
@@ -226,7 +229,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
       }
       setVendorDialogOpen(false);
       resetVendorForm();
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       toast.error(editingVendorId ? "Failed to update vendor" : "Failed to add vendor");
     } finally {
@@ -246,7 +249,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
           invoiceNumber: billInvoiceNumber || null,
           amount: billAmount,
           note: billNote || null,
-          imageUrl: billImage,
+          imageKey: billImage,
           receivedDate: billDate,
           dueDate: billDueDate || null,
           billedTo: (billBilledTo as any) || null,
@@ -259,7 +262,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
           invoiceNumber: billInvoiceNumber || null,
           amount: billAmount,
           note: billNote || null,
-          imageUrl: billImage,
+          imageKey: billImage,
           receivedDate: billDate,
           dueDate: billDueDate || null,
           billedTo: (billBilledTo as any) || null,
@@ -268,7 +271,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
       }
       setBillDialogOpen(false);
       resetBillForm();
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       toast.error(editingBillId ? "Failed to update bill" : "Failed to add bill");
     } finally {
@@ -288,7 +291,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
       try {
         await toggleBillStatus(billId);
         toast.success("Marked as unpaid");
-        window.location.reload();
+        router.refresh();
       } catch (error) {
         toast.error("Failed to update status");
       }
@@ -303,7 +306,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
       toast.success(`Marked as paid (${formatPaymentMode(mode)})`);
       setPendingPayBillId(null);
       setPendingPayAmount("");
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       toast.error("Failed to update status");
     }
@@ -313,7 +316,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
     try {
       await deleteBill(billId);
       toast.success("Bill deleted");
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       toast.error("Failed to delete bill");
     }
@@ -326,14 +329,14 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
         vendorId: bill.vendor?.id || null,
         amount: bill.amount,
         note: bill.note || null,
-        imageUrl: null,
+        imageKey: null,
         receivedDate: toDateInputValue(),
         dueDate: null,
         billedTo: (bill.billedTo as any) || null,
         invoiceNumber: bill.invoiceNumber || null,
       });
       toast.success("Bill duplicated with today's date");
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       toast.error("Failed to duplicate bill");
     }
@@ -343,7 +346,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
     try {
       await deleteVendor(vendorId);
       toast.success("Vendor deleted");
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       toast.error("Failed to delete vendor");
     }

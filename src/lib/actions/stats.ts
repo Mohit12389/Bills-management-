@@ -2,8 +2,9 @@
 
 import { db } from "@/db";
 import { bills, categories } from "@/db/schema";
+import { billColumnsNoImage, hasImageExtra } from "@/db/bill-columns";
 import { getCurrentUser } from "@/lib/auth";
-import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
+import { eq, and, gte, lte, sql, desc, type SQL } from "drizzle-orm";
 
 export interface StatsFilters {
   from?: string;
@@ -12,99 +13,76 @@ export interface StatsFilters {
   month?: number;
 }
 
-// Columns to fetch — everything EXCEPT imageUrl
-const billColumnsNoImage = {
-  id: true,
-  userId: true,
-  categoryId: true,
-  vendorId: true,
-  amount: true,
-  invoiceNumber: true,
-  note: true,
-  status: true,
-  paymentMode: true,
-  billedTo: true,
-  receivedDate: true,
-  paidDate: true,
-  dueDate: true,
-  isRecurring: true,
-  createdAt: true,
-  updatedAt: true,
-} as const;
-
 export async function getDashboardStats() {
   const user = await getCurrentUser();
 
-  const allBills = await db.query.bills.findMany({
-    where: eq(bills.userId, user.id),
-    columns: billColumnsNoImage,
-    with: { category: true },
-  });
-
   const now = new Date();
-  const thisMonth = allBills.filter((b) => {
-    const d = new Date(b.receivedDate);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  });
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-  const lastMonth = allBills.filter((b) => {
-    const d = new Date(b.receivedDate);
-    const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return d.getMonth() === lm.getMonth() && d.getFullYear() === lm.getFullYear();
-  });
+  const amount = bills.amount;
+  const sumWhere = (condition: SQL) =>
+    sql<number>`coalesce(sum(${amount}) filter (where ${condition}), 0)`.mapWith(Number);
+  const countWhere = (condition: SQL) =>
+    sql<number>`count(*) filter (where ${condition})`.mapWith(Number);
 
-  const totalAmount = allBills.reduce((s, b) => s + parseFloat(b.amount), 0);
-  const totalPaid = allBills.filter((b) => b.status === "paid").reduce((s, b) => s + parseFloat(b.amount), 0);
-  const totalUnpaid = allBills.filter((b) => b.status === "unpaid").reduce((s, b) => s + parseFloat(b.amount), 0);
-  const thisMonthTotal = thisMonth.reduce((s, b) => s + parseFloat(b.amount), 0);
-  const lastMonthTotal = lastMonth.reduce((s, b) => s + parseFloat(b.amount), 0);
+  const isPaid = sql`${bills.status} = 'paid'`;
+  const isUnpaid = sql`${bills.status} = 'unpaid'`;
+  const isOverdue = sql`${bills.status} = 'unpaid' and ${bills.dueDate} < ${now}`;
+  const inThisMonth = sql`${bills.receivedDate} >= ${thisMonthStart} and ${bills.receivedDate} < ${nextMonthStart}`;
+  const inLastMonth = sql`${bills.receivedDate} >= ${lastMonthStart} and ${bills.receivedDate} < ${thisMonthStart}`;
 
+  // Everything is aggregated in the database; only summary rows + 5 recent bills come back
+  const [[totals], categoryRows, recentBills] = await Promise.all([
+    db
+      .select({
+        totalBills: sql<number>`count(*)`.mapWith(Number),
+        totalAmount: sql<number>`coalesce(sum(${amount}), 0)`.mapWith(Number),
+        totalPaid: sumWhere(isPaid),
+        totalUnpaid: sumWhere(isUnpaid),
+        paidCount: countWhere(isPaid),
+        unpaidCount: countWhere(isUnpaid),
+        overdueCount: countWhere(isOverdue),
+        overdueAmount: sumWhere(isOverdue),
+        thisMonthTotal: sumWhere(inThisMonth),
+        lastMonthTotal: sumWhere(inLastMonth),
+      })
+      .from(bills)
+      .where(eq(bills.userId, user.id)),
+    db
+      .select({
+        name: categories.name,
+        color: categories.color,
+        total: sql<number>`coalesce(sum(${amount}), 0)`.mapWith(Number),
+        paid: sumWhere(isPaid),
+        unpaid: sumWhere(isUnpaid),
+        count: sql<number>`count(*)`.mapWith(Number),
+      })
+      .from(bills)
+      .innerJoin(categories, eq(bills.categoryId, categories.id))
+      .where(eq(bills.userId, user.id))
+      .groupBy(categories.id, categories.name, categories.color)
+      .orderBy(desc(sql`sum(${amount})`)),
+    db.query.bills.findMany({
+      where: eq(bills.userId, user.id),
+      columns: billColumnsNoImage,
+      with: { category: true },
+      orderBy: [desc(bills.receivedDate)],
+      limit: 5,
+    }),
+  ]);
+
+  const { thisMonthTotal, lastMonthTotal } = totals;
   const monthOverMonth =
     lastMonthTotal > 0
       ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100
       : 0;
 
-  const overdueBills = allBills.filter(
-    (b) => b.status === "unpaid" && b.dueDate && new Date(b.dueDate) < now
-  );
-
-  const categoryMap = new Map<
-    string,
-    { name: string; color: string; total: number; paid: number; unpaid: number; count: number }
-  >();
-
-  allBills.forEach((b) => {
-    const cat = b.category;
-    if (!cat) return;
-    const existing = categoryMap.get(cat.id) || {
-      name: cat.name,
-      color: cat.color || "#6366f1",
-      total: 0, paid: 0, unpaid: 0, count: 0,
-    };
-    existing.total += parseFloat(b.amount);
-    existing.count += 1;
-    if (b.status === "paid") existing.paid += parseFloat(b.amount);
-    else existing.unpaid += parseFloat(b.amount);
-    categoryMap.set(cat.id, existing);
-  });
-
-  const recentBills = allBills
-    .sort((a, b) => new Date(b.receivedDate).getTime() - new Date(a.receivedDate).getTime())
-    .slice(0, 5);
-
   return {
-    totalAmount,
-    totalPaid,
-    totalUnpaid,
-    totalBills: allBills.length,
-    paidCount: allBills.filter((b) => b.status === "paid").length,
-    unpaidCount: allBills.filter((b) => b.status === "unpaid").length,
-    overdueCount: overdueBills.length,
-    overdueAmount: overdueBills.reduce((s, b) => s + parseFloat(b.amount), 0),
-    thisMonthTotal,
-    lastMonthTotal,
+    ...totals,
     monthOverMonth: Math.round(monthOverMonth * 10) / 10,
-    categoryBreakdown: Array.from(categoryMap.values()),
+    categoryBreakdown: categoryRows.map((c) => ({ ...c, color: c.color || "#6366f1" })),
     recentBills,
   };
 }
@@ -125,9 +103,7 @@ export async function getStatsData(filters: StatsFilters = {}) {
     where: and(...conditions),
     columns: billColumnsNoImage,
     // Check for an image in the DB without transferring the base64 data
-    extras: (table, { sql }) => ({
-      hasImage: sql<boolean>`${table.imageUrl} is not null`.as("has_image"),
-    }),
+    extras: hasImageExtra,
     with: { category: true, vendor: true },
     orderBy: [desc(bills.receivedDate)],
   });

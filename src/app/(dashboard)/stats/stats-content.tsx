@@ -12,19 +12,7 @@ import {
   X,
   Filter,
 } from "lucide-react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Legend,
-} from "recharts";
+import { CategoryPieChart, MonthlyBarChart } from "@/components/charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -408,35 +396,12 @@ export function StatsContent({
             {computed.categoryPieData.length > 0 ? (
               <div className="flex flex-col items-center gap-6 sm:flex-row">
                 <div className="h-56 w-56 sm:h-64 sm:w-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={computed.categoryPieData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={90}
-                        paddingAngle={3}
-                        strokeWidth={2}
-                        stroke="hsl(var(--background))"
-                      >
-                        {computed.categoryPieData.map((entry, index) => (
-                          <Cell key={index} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(value: number) => formatCurrency(value)}
-                        contentStyle={{
-                          borderRadius: "8px",
-                          border: "1px solid hsl(var(--border))",
-                          background: "hsl(var(--card))",
-                          fontSize: "12px",
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <CategoryPieChart
+                    data={computed.categoryPieData}
+                    dataKey="value"
+                    innerRadius={50}
+                    outerRadius={90}
+                  />
                 </div>
                 <div className="flex-1 space-y-3">
                   {computed.categoryPieData.map((cat, i) => {
@@ -473,20 +438,7 @@ export function StatsContent({
           <CardContent>
             {computed.monthlyBarData.length > 0 ? (
               <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={computed.monthlyBarData}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip
-                      formatter={(value: number) => formatCurrency(value)}
-                      contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", fontSize: "12px" }}
-                    />
-                    <Legend wrapperStyle={{ fontSize: "12px" }} iconType="circle" iconSize={8} />
-                    <Bar dataKey="paid" name="Paid" fill="#22c55e" radius={[4, 4, 0, 0]} stackId="a" />
-                    <Bar dataKey="unpaid" name="Unpaid" fill="#f59e0b" radius={[4, 4, 0, 0]} stackId="a" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <MonthlyBarChart data={computed.monthlyBarData} />
               </div>
             ) : (
               <p className="py-12 text-center text-sm text-muted-foreground">No data for the selected filters</p>

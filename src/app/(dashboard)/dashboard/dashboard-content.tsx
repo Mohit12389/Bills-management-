@@ -10,18 +10,7 @@ import {
   TrendingUp,
   ArrowRight,
 } from "lucide-react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-} from "recharts";
+import { CategoryPieChart } from "@/components/charts";
 import { StatCard, StatusBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -126,35 +115,12 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
             {stats.categoryBreakdown.length > 0 ? (
               <div className="flex flex-col items-center gap-4 sm:flex-row">
                 <div className="h-48 w-48 sm:h-56 sm:w-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={stats.categoryBreakdown}
-                        dataKey="total"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={45}
-                        outerRadius={80}
-                        paddingAngle={3}
-                        strokeWidth={2}
-                        stroke="hsl(var(--background))"
-                      >
-                        {stats.categoryBreakdown.map((entry, index) => (
-                          <Cell key={index} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(value: number) => formatCurrency(value)}
-                        contentStyle={{
-                          borderRadius: "8px",
-                          border: "1px solid hsl(var(--border))",
-                          background: "hsl(var(--card))",
-                          fontSize: "12px",
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <CategoryPieChart
+                    data={stats.categoryBreakdown}
+                    dataKey="total"
+                    innerRadius={45}
+                    outerRadius={80}
+                  />
                 </div>
                 <div className="flex-1 space-y-2">
                   {stats.categoryBreakdown.map((cat, i) => (

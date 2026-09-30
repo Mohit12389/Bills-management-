@@ -3,6 +3,13 @@ import { db } from "@/db";
 import { bills } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { createHash } from "crypto";
+import { getViewUrl } from "@/lib/r2";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Signed R2 links are valid for 1 hour; browsers may reuse the redirect for 30 minutes
+const VIEW_URL_TTL_SECONDS = 60 * 60;
+const REDIRECT_CACHE_SECONDS = 30 * 60;
 
 export async function GET(
   request: NextRequest,
@@ -13,27 +20,41 @@ export async function GET(
     const params = await context.params;
     const billId = params?.id;
 
-    if (!billId) {
-      return new NextResponse("Bill ID required", { status: 400 });
+    if (!billId || !UUID_RE.test(billId)) {
+      return new NextResponse("Bill not found", { status: 404 });
     }
 
-    // Fetch the bill's image from database
+    // Public on purpose: exported PDFs link here so the CA can open images without logging in.
+    // The R2 bucket itself stays private — we redirect to a short-lived signed URL,
+    // created fresh on every visit, so these links never expire.
     const bill = await db.query.bills.findFirst({
       where: eq(bills.id, billId),
-      columns: {
-        imageUrl: true,
-      },
+      columns: { imageKey: true },
     });
 
     if (!bill) {
       return new NextResponse("Bill not found", { status: 404 });
     }
 
-    if (!bill.imageUrl) {
+    if (bill.imageKey) {
+      const url = await getViewUrl(bill.imageKey, VIEW_URL_TTL_SECONDS);
+      return NextResponse.redirect(url, {
+        status: 302,
+        headers: { "Cache-Control": `private, max-age=${REDIRECT_CACHE_SECONDS}` },
+      });
+    }
+
+    // Legacy: image still stored as base64 in the database (not yet migrated to R2)
+    const legacy = await db.query.bills.findFirst({
+      where: eq(bills.id, billId),
+      columns: { imageUrl: true },
+    });
+
+    if (!legacy?.imageUrl) {
       return new NextResponse("No image attached to this bill", { status: 404 });
     }
 
-    const imageData = bill.imageUrl;
+    const imageData = legacy.imageUrl;
 
     // Public on purpose (exported PDFs link here for the CA), but not immutable:
     // images can be replaced, so browsers must revalidate using the ETag.

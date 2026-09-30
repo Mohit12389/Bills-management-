@@ -48,7 +48,7 @@ export function NewBillForm({
   const [vendorId, setVendorId] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageKey, setImageKey] = useState<string | null>(null);
   const [receivedDate, setReceivedDate] = useState(toDateInputValue());
   const [dueDate, setDueDate] = useState("");
   const [recurring, setRecurring] = useState<string>("none");
@@ -74,7 +74,7 @@ export function NewBillForm({
         vendorId: vendorId || null,
         amount,
         note: note || null,
-        imageUrl,
+        imageKey,
         receivedDate,
         dueDate: dueDate || null,
         isRecurring: recurring as any,
@@ -248,7 +248,7 @@ export function NewBillForm({
           {/* Image */}
           <div className="form-group">
             <Label>Bill Image</Label>
-            <ImageUpload value={imageUrl} onChange={setImageUrl} />
+            <ImageUpload value={imageKey} onChange={setImageKey} />
             <p className="text-[10px] text-muted-foreground">
               Images are auto-compressed to save storage space
             </p>

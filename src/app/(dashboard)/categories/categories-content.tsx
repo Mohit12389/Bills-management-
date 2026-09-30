@@ -49,6 +49,9 @@ interface CategoryWithStats {
   vendorCount: number;
 }
 
+const sortByName = (list: CategoryWithStats[]) =>
+  [...list].sort((a, b) => a.name.localeCompare(b.name));
+
 export function CategoriesContent({
   initialCategories,
 }: {
@@ -81,22 +84,30 @@ export function CategoriesContent({
     setIsSubmitting(true);
 
     try {
+      // Update local state directly instead of reloading the whole page
       if (editingCategory) {
-        await updateCategory(editingCategory.id, {
+        const updated = await updateCategory(editingCategory.id, {
           name: formName.trim(),
           color: formColor,
         });
+        setCategories((prev) =>
+          sortByName(prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)))
+        );
         toast.success("Category updated");
       } else {
-        await createCategory({
+        const created = await createCategory({
           name: formName.trim(),
           color: formColor,
         });
+        setCategories((prev) =>
+          sortByName([
+            ...prev,
+            { ...created, totalBills: 0, totalAmount: 0, unpaidAmount: 0, paidAmount: 0, vendorCount: 0 },
+          ])
+        );
         toast.success("Category created");
       }
       setDialogOpen(false);
-      // Reload page to get fresh data
-      window.location.reload();
     } catch (error) {
       toast.error("Something went wrong");
     } finally {

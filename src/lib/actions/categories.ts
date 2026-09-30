@@ -2,10 +2,12 @@
 
 import { db } from "@/db";
 import { categories, bills, vendors } from "@/db/schema";
+import { billColumnsNoImage, hasImageExtra } from "@/db/bill-columns";
 import { getCurrentUser } from "@/lib/auth";
 import { categorySchema } from "@/lib/validations";
 import { eq, and, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { deleteImages } from "@/lib/r2";
 
 export async function getCategories() {
   const user = await getCurrentUser();
@@ -21,40 +23,47 @@ export async function getCategories() {
 export async function getCategoriesWithStats() {
   const user = await getCurrentUser();
 
-  const result = await db.query.categories.findMany({
-    where: eq(categories.userId, user.id),
-    with: {
-      bills: {
-        columns: {
-          id: true,
-          amount: true,
-          status: true,
-        },
-      },
-      vendors: {
-        columns: {
-          id: true,
-        },
-      },
-    },
-    orderBy: (categories, { asc }) => [asc(categories.name)],
-  });
+  // Totals are aggregated in the database — only one row per category comes back
+  const [cats, billTotals, vendorCounts] = await Promise.all([
+    db.query.categories.findMany({
+      where: eq(categories.userId, user.id),
+      orderBy: (categories, { asc }) => [asc(categories.name)],
+    }),
+    db
+      .select({
+        categoryId: bills.categoryId,
+        totalBills: sql<number>`count(*)`.mapWith(Number),
+        totalAmount: sql<number>`coalesce(sum(${bills.amount}), 0)`.mapWith(Number),
+        paidAmount: sql<number>`coalesce(sum(${bills.amount}) filter (where ${bills.status} = 'paid'), 0)`.mapWith(Number),
+        unpaidAmount: sql<number>`coalesce(sum(${bills.amount}) filter (where ${bills.status} = 'unpaid'), 0)`.mapWith(Number),
+      })
+      .from(bills)
+      .where(eq(bills.userId, user.id))
+      .groupBy(bills.categoryId),
+    db
+      .select({
+        categoryId: vendors.categoryId,
+        vendorCount: sql<number>`count(*)`.mapWith(Number),
+      })
+      .from(vendors)
+      .where(eq(vendors.userId, user.id))
+      .groupBy(vendors.categoryId),
+  ]);
 
-  return result.map((cat) => ({
-    ...cat,
-    totalBills: cat.bills.length,
-    totalAmount: cat.bills.reduce(
-      (sum, b) => sum + parseFloat(b.amount),
-      0
-    ),
-    unpaidAmount: cat.bills
-      .filter((b) => b.status === "unpaid")
-      .reduce((sum, b) => sum + parseFloat(b.amount), 0),
-    paidAmount: cat.bills
-      .filter((b) => b.status === "paid")
-      .reduce((sum, b) => sum + parseFloat(b.amount), 0),
-    vendorCount: cat.vendors.length,
-  }));
+  const totalsByCategory = new Map(billTotals.map((t) => [t.categoryId, t]));
+  const vendorsByCategory = new Map(vendorCounts.map((v) => [v.categoryId, v.vendorCount]));
+
+  return cats.map((cat) => {
+    const totals = totalsByCategory.get(cat.id);
+    return {
+      ...cat,
+      totalBills: totals?.totalBills ?? 0,
+      totalAmount: totals?.totalAmount ?? 0,
+      unpaidAmount: totals?.unpaidAmount ?? 0,
+      paidAmount: totals?.paidAmount ?? 0,
+      vendorCount: vendorsByCategory.get(cat.id) ?? 0,
+    };
+  });
 }
 
 export async function getCategoryById(id: string) {
@@ -65,23 +74,9 @@ export async function getCategoryById(id: string) {
     with: {
       vendors: true,
       bills: {
-        columns: {
-          id: true,
-          userId: true,
-          categoryId: true,
-          vendorId: true,
-          amount: true,
-          note: true,
-          invoiceNumber: true,
-          status: true,
-          paymentMode: true,
-          billedTo: true,
-          receivedDate: true,
-          paidDate: true,
-          dueDate: true,
-          isRecurring: true,
-          // imageUrl deliberately excluded
-        },
+        // imageUrl deliberately excluded — hasImage tells us if one exists
+        columns: billColumnsNoImage,
+        extras: hasImageExtra,
         with: {
           vendor: true,
         },
@@ -92,32 +87,11 @@ export async function getCategoryById(id: string) {
 
   if (!result) return result;
 
-  // Add hasImage flag by checking which bills have images
-  // This avoids fetching full base64 data
-  const billIds = result.bills.map((b) => b.id);
-
-  let imageMap = new Map<string, boolean>();
-  if (billIds.length > 0) {
-    const imageCheck = await db.query.bills.findMany({
-      where: and(
-        eq(bills.userId, user.id),
-        eq(bills.categoryId, id)
-      ),
-      columns: {
-        id: true,
-        imageUrl: true,
-      },
-    });
-    imageCheck.forEach((b) => {
-      imageMap.set(b.id, !!b.imageUrl);
-    });
-  }
-
   return {
     ...result,
-    bills: result.bills.map((b) => ({
+    bills: result.bills.map(({ hasImage, ...b }) => ({
       ...b,
-      imageUrl: imageMap.get(b.id) ? "has_image" : null,
+      imageUrl: hasImage ? "has_image" : null,
     })),
   };
 }
@@ -167,9 +141,20 @@ export async function updateCategory(
 export async function deleteCategory(id: string) {
   const user = await getCurrentUser();
 
-  await db
+  // Deleting a category cascades to its bills — collect their R2 images first
+  const categoryBills = await db
+    .select({ imageKey: bills.imageKey })
+    .from(bills)
+    .where(and(eq(bills.categoryId, id), eq(bills.userId, user.id)));
+
+  const deleted = await db
     .delete(categories)
-    .where(and(eq(categories.id, id), eq(categories.userId, user.id)));
+    .where(and(eq(categories.id, id), eq(categories.userId, user.id)))
+    .returning({ id: categories.id });
+
+  if (deleted.length > 0) {
+    await deleteImages(categoryBills.map((b) => b.imageKey));
+  }
 
   revalidatePath("/categories");
   revalidatePath("/dashboard");

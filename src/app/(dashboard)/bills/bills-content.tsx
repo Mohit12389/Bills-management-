@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useDeferredValue, useEffect } from "react";
 import {
   Receipt,
   Search,
@@ -77,6 +77,9 @@ interface BillWithRelations {
   vendor: { id: string; name: string } | null;
 }
 
+// Rows rendered at a time — totals and "select all" still cover every filtered bill
+const PAGE_SIZE = 50;
+
 interface CategoryOption {
   id: string;
   name: string;
@@ -128,6 +131,11 @@ export function BillsContent({
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  // Filtering waits for typing to settle instead of blocking every keystroke
+  const deferredSearch = useDeferredValue(searchQuery);
+
   // ===== CLIENT-SIDE FILTERING =====
   const displayBills = useMemo(() => {
     return bills.filter((bill) => {
@@ -139,8 +147,8 @@ export function BillsContent({
       if (dateTo) {
         if (new Date(bill.receivedDate) > new Date(dateTo + "T23:59:59")) return false;
       }
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (deferredSearch.trim()) {
+        const q = deferredSearch.toLowerCase();
         const matchesNote = bill.note?.toLowerCase().includes(q) || false;
         const matchesCategory = bill.category?.name.toLowerCase().includes(q) || false;
         const matchesVendor = bill.vendor?.name.toLowerCase().includes(q) || false;
@@ -149,12 +157,35 @@ export function BillsContent({
       }
       return true;
     });
-  }, [bills, statusFilter, categoryFilter, dateFrom, dateTo, searchQuery]);
+  }, [bills, statusFilter, categoryFilter, dateFrom, dateTo, deferredSearch]);
+
+  // Back to the first page whenever the filters change
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [statusFilter, categoryFilter, dateFrom, dateTo, deferredSearch]);
+
+  const visibleBills = displayBills.slice(0, visibleCount);
 
   // ===== COMPUTED =====
-  const totalFiltered = displayBills.reduce((s, b) => s + parseFloat(b.amount), 0);
-  const totalPaid = displayBills.filter((b) => b.status === "paid").reduce((s, b) => s + parseFloat(b.amount), 0);
-  const totalUnpaid = displayBills.filter((b) => b.status === "unpaid").reduce((s, b) => s + parseFloat(b.amount), 0);
+  const { totalFiltered, totalPaid, totalUnpaid } = useMemo(() => {
+    let totalFiltered = 0, totalPaid = 0, totalUnpaid = 0;
+    for (const b of displayBills) {
+      const amount = parseFloat(b.amount);
+      totalFiltered += amount;
+      if (b.status === "paid") totalPaid += amount;
+      else if (b.status === "unpaid") totalUnpaid += amount;
+    }
+    return { totalFiltered, totalPaid, totalUnpaid };
+  }, [displayBills]);
+
+  const statusCounts = useMemo(() => {
+    const counts = { all: bills.length, paid: 0, unpaid: 0 };
+    for (const b of bills) {
+      if (b.status === "paid") counts.paid++;
+      else if (b.status === "unpaid") counts.unpaid++;
+    }
+    return counts;
+  }, [bills]);
 
   // Bulk selection breakdown
   const selectedBills = bills.filter((b) => selectedIds.has(b.id));
@@ -169,10 +200,12 @@ export function BillsContent({
   };
 
   const toggleSelect = (id: string) => {
-    const next = new Set(selectedIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelectedIds(next);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   // ===== SINGLE BILL: MARK PAID (only for unpaid bills) =====
@@ -349,7 +382,7 @@ export function BillsContent({
       await updateBill(editBillId, {
         amount: editAmount,
         note: editNote || null,
-        imageUrl: editImage,
+        imageKey: editImage,
         receivedDate: editDate,
         dueDate: editDueDate || null,
         billedTo: (editBilledTo as any) || null,
@@ -476,7 +509,7 @@ export function BillsContent({
               />
             </div>
             {(["all", "paid", "unpaid"] as const).map((s) => {
-              const count = s === "all" ? bills.length : bills.filter((b) => b.status === s).length;
+              const count = statusCounts[s];
               return (
                 <Button
                   key={s}
@@ -541,7 +574,7 @@ export function BillsContent({
                 <span className="w-20" />
               </div>
 
-              {displayBills.map((bill) => (
+              {visibleBills.map((bill) => (
                 <div
                   key={bill.id}
                   className="flex items-center gap-3 p-3 transition-colors hover:bg-muted/50 sm:gap-4 sm:px-4"
@@ -636,6 +669,18 @@ export function BillsContent({
                   </DropdownMenu>
                 </div>
               ))}
+
+              {displayBills.length > visibleCount && (
+                <div className="flex justify-center p-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+                  >
+                    Show more ({displayBills.length - visibleCount} remaining)
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>

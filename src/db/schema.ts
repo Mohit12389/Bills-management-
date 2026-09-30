@@ -7,6 +7,7 @@ import {
   uuid,
   integer,
   pgEnum,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -52,7 +53,9 @@ export const categories = pgTable("categories", {
   color: text("color").default("#6366f1"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("categories_user_id_idx").on(t.userId),
+]);
 
 // Vendors table (under categories)
 export const vendors = pgTable("vendors", {
@@ -68,7 +71,10 @@ export const vendors = pgTable("vendors", {
   address: text("address"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("vendors_user_id_category_id_idx").on(t.userId, t.categoryId),
+  index("vendors_category_id_idx").on(t.categoryId),
+]);
 
 // Bills table
 export const bills = pgTable("bills", {
@@ -83,7 +89,10 @@ export const bills = pgTable("bills", {
     .references(() => vendors.id, { onDelete: "set null" }),
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
   note: text("note"),
+  // Legacy: base64 data URL. Being replaced by imageKey (Cloudflare R2); see scripts/migrate-images-to-r2.ts
   imageUrl: text("image_url"),
+  // R2 object key, e.g. bills/<userId>/<uuid>.jpg — the image itself lives in the private R2 bucket
+  imageKey: text("image_key"),
   status: billStatusEnum("status").default("unpaid").notNull(),
   paymentMode: paymentModeEnum("payment_mode"),
   billedTo: billedToEnum("billed_to"),
@@ -94,7 +103,16 @@ export const bills = pgTable("bills", {
   isRecurring: recurringTypeEnum("is_recurring").default("none").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (t) => [
+  // Bills list (newest uploads first)
+  index("bills_user_id_created_at_idx").on(t.userId, t.createdAt.desc()),
+  // Stats / date-range filters
+  index("bills_user_id_received_date_idx").on(t.userId, t.receivedDate),
+  // Category detail page + cascade deletes
+  index("bills_category_id_idx").on(t.categoryId),
+  // ON DELETE SET NULL when a vendor is deleted
+  index("bills_vendor_id_idx").on(t.vendorId),
+]);
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({

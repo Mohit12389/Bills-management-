@@ -2,8 +2,9 @@ import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { WebhookEvent } from "@clerk/nextjs/server";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { bills, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { deleteImages } from "@/lib/r2";
 
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
@@ -76,7 +77,19 @@ export async function POST(req: Request) {
   if (eventType === "user.deleted") {
     const { id } = evt.data;
     if (id) {
-      await db.delete(users).where(eq(users.clerkId, id));
+      // Deleting the user cascades to their bills — collect their R2 images first
+      const user = await db.query.users.findFirst({
+        where: eq(users.clerkId, id),
+        columns: { id: true },
+      });
+      if (user) {
+        const userBills = await db
+          .select({ imageKey: bills.imageKey })
+          .from(bills)
+          .where(eq(bills.userId, user.id));
+        await db.delete(users).where(eq(users.id, user.id));
+        await deleteImages(userBills.map((b) => b.imageKey));
+      }
     }
   }
 
