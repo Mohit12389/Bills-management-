@@ -9,7 +9,8 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
 
 // Bill images live in a PRIVATE Cloudflare R2 bucket.
-// - Uploads: the browser PUTs straight to R2 using a short-lived signed URL.
+// - Uploads: the browser posts to /api/bills/image-upload, which stores the file here
+//   (no browser-to-R2 traffic, so no CORS setup is needed).
 // - Viewing: /api/bills/image/[id] redirects to a short-lived signed GET URL,
 //   so links in exported PDFs never expire and never need a login.
 
@@ -44,20 +45,6 @@ export function isOwnBillImageKey(key: string, userId: string) {
 
 export function newBillImageKey(userId: string, contentType: string) {
   return `${billImagePrefix(userId)}${randomUUID()}.${EXTENSIONS[contentType] ?? "jpg"}`;
-}
-
-// Signed URL the browser uses to upload one image (size and type are locked in the signature)
-export function getUploadUrl(key: string, contentType: string, contentLength: number) {
-  return getSignedUrl(
-    r2,
-    new PutObjectCommand({
-      Bucket: bucket,
-      Key: key,
-      ContentType: contentType,
-      ContentLength: contentLength,
-    }),
-    { expiresIn: 10 * 60 }
-  );
 }
 
 // Signed URL for viewing an image — created fresh on every click of a bill image link

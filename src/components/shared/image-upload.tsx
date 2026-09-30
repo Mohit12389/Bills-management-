@@ -4,7 +4,6 @@ import React, { useState, useCallback, useEffect } from "react";
 import { X, ImageIcon, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { createBillImageUpload } from "@/lib/actions/images";
 
 // Must match MAX_IMAGE_BYTES in src/lib/r2.ts
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
@@ -66,16 +65,20 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
           );
         }
 
-        // Upload straight to Cloudflare R2 with a short-lived signed URL
-        const { key, uploadUrl } = await createBillImageUpload(blob.type, blob.size);
-        const response = await fetch(uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": blob.type },
-          body: blob,
-        });
-        if (!response.ok) {
-          throw new Error("Upload failed. Please check your connection and try again.");
+        // Upload via our own server, which stores it in Cloudflare R2
+        const formData = new FormData();
+        formData.append("file", blob, "bill.jpg");
+        let response: Response;
+        try {
+          response = await fetch("/api/bills/image-upload", { method: "POST", body: formData });
+        } catch {
+          throw new Error("Upload failed. Please check your internet connection and try again.");
         }
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result?.key) {
+          throw new Error(result?.error || "Upload failed. Please try again.");
+        }
+        const key: string = result.key;
 
         const reduction = Math.round(((originalSize - blob.size) / originalSize) * 100);
         setCompressionInfo(
