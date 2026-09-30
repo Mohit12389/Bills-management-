@@ -7,9 +7,8 @@ import { getViewUrl } from "@/lib/r2";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Signed R2 links are valid for 1 hour; browsers may reuse the redirect for 30 minutes
+// Signed R2 links are valid for 1 hour
 const VIEW_URL_TTL_SECONDS = 60 * 60;
-const REDIRECT_CACHE_SECONDS = 30 * 60;
 
 export async function GET(
   request: NextRequest,
@@ -38,9 +37,11 @@ export async function GET(
 
     if (bill.imageKey) {
       const url = await getViewUrl(bill.imageKey, VIEW_URL_TTL_SECONDS);
+      // Never cache the redirect: when a bill's photo is replaced the old file is deleted,
+      // and a cached redirect would send the browser to it ("NoSuchKey")
       return NextResponse.redirect(url, {
         status: 302,
-        headers: { "Cache-Control": `private, max-age=${REDIRECT_CACHE_SECONDS}` },
+        headers: { "Cache-Control": "no-store" },
       });
     }
 
