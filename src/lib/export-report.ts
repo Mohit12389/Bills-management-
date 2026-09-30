@@ -35,7 +35,14 @@ interface ReportData {
   categoryBreakdown: ReportCategoryBreakdown[];
 }
 
-function getBaseUrl(): string {
+// Image links in exports are opened by the CA without logging in, often months later.
+// Always use the stable public production domain when configured, never the address
+// of whichever (possibly protected or later-deleted) deployment was open at export time.
+export function getBaseUrl(): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (appUrl) {
+    return appUrl.replace(/\/+$/, "");
+  }
   if (typeof window !== "undefined") {
     return window.location.origin;
   }

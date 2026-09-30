@@ -758,7 +758,7 @@ export function BillsContent({
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/30">
                 <p className="text-xs font-semibold text-blue-800 dark:text-blue-400">
                   ℹ {selectedUnpaidCount} bill{selectedUnpaidCount > 1 ? "s are" : " is"} already unpaid
-                  and won't be changed.
+                  and won&apos;t be changed.
                 </p>
               </div>
             )}
