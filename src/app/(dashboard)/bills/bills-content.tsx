@@ -50,6 +50,7 @@ import {
   ImageViewer,
   DateRangePicker,
   PaymentModeDialog,
+  ConfirmDialog,
 } from "@/components/shared";
 import { formatPaymentMode, formatBilledTo } from "@/components/shared/payment-mode-dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -116,6 +117,9 @@ export function BillsContent({
   // Bulk confirmation dialog
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [bulkConfirmAction, setBulkConfirmAction] = useState<"paid" | "unpaid">("paid");
+
+  // Delete confirmation — "bulk" deletes the current selection
+  const [deleteTarget, setDeleteTarget] = useState<string | "bulk" | null>(null);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -329,7 +333,8 @@ export function BillsContent({
     setEditBillId(bill.id);
     setEditAmount(bill.amount);
     setEditNote(bill.note || "");
-    setEditImage(bill.imageUrl || null);
+    // List data only carries a "has_image" flag — preview the real image via the API route
+    setEditImage(bill.imageUrl ? `/api/bills/image/${bill.id}` : null);
     setEditDate(bill.receivedDate ? new Date(bill.receivedDate).toISOString().split("T")[0] : "");
     setEditDueDate(bill.dueDate ? new Date(bill.dueDate).toISOString().split("T")[0] : "");
     setEditBilledTo(bill.billedTo || "");
@@ -357,7 +362,7 @@ export function BillsContent({
                 ...b,
                 amount: editAmount,
                 note: editNote || null,
-                imageUrl: editImage,
+                imageUrl: editImage ? "has_image" : null,
                 receivedDate: new Date(editDate),
                 dueDate: editDueDate ? new Date(editDueDate) : null,
                 billedTo: editBilledTo || null,
@@ -504,7 +509,7 @@ export function BillsContent({
                   <Clock className="h-3.5 w-3.5 text-amber-600" />
                   Mark Unpaid
                 </Button>
-                <Button size="sm" variant="destructive" onClick={handleBulkDelete} className="gap-1 text-xs">
+                <Button size="sm" variant="destructive" onClick={() => setDeleteTarget("bulk")} className="gap-1 text-xs">
                   <Trash2 className="h-3.5 w-3.5" />
                   Delete
                 </Button>
@@ -623,7 +628,7 @@ export function BillsContent({
                         </>
                       )}
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(bill.id)}>
+                      <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(bill.id)}>
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete
                       </DropdownMenuItem>
@@ -639,6 +644,20 @@ export function BillsContent({
       {viewingImage && (
         <ImageViewer open={!!viewingImage} onClose={() => setViewingImage(null)} imageUrl={viewingImage} />
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title={deleteTarget === "bulk" ? `Delete ${selectedIds.size} bills?` : "Delete this bill?"}
+        description="This permanently deletes the bill and its image. This cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => {
+          if (deleteTarget === "bulk") handleBulkDelete();
+          else if (deleteTarget) handleDelete(deleteTarget);
+          setDeleteTarget(null);
+        }}
+      />
 
       {/* Payment Mode Dialog */}
       <PaymentModeDialog

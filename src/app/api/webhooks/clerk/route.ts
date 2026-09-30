@@ -43,12 +43,20 @@ export async function POST(req: Request) {
   if (eventType === "user.created") {
     const { id, email_addresses, first_name, last_name, image_url } = evt.data;
 
-    await db.insert(users).values({
-      clerkId: id,
+    const values = {
       email: email_addresses[0]?.email_address || "",
       name: [first_name, last_name].filter(Boolean).join(" ") || null,
       imageUrl: image_url || null,
-    });
+    };
+
+    // Upsert: the row may already exist (webhook retry, or created by getCurrentUser)
+    await db
+      .insert(users)
+      .values({ clerkId: id, ...values })
+      .onConflictDoUpdate({
+        target: users.clerkId,
+        set: { ...values, updatedAt: new Date() },
+      });
   }
 
   if (eventType === "user.updated") {

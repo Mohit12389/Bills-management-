@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { vendors } from "@/db/schema";
+import { categories, vendors } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { vendorSchema } from "@/lib/validations";
 import { eq, and } from "drizzle-orm";
@@ -37,6 +37,12 @@ export async function createVendor(data: {
 }) {
   const user = await getCurrentUser();
   const validated = vendorSchema.parse(data);
+
+  const category = await db.query.categories.findFirst({
+    where: and(eq(categories.id, validated.categoryId), eq(categories.userId, user.id)),
+    columns: { id: true },
+  });
+  if (!category) throw new Error("Category not found");
 
   const [vendor] = await db
     .insert(vendors)

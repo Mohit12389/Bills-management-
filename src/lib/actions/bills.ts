@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { bills } from "@/db/schema";
+import { bills, categories, vendors } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { billSchema } from "@/lib/validations";
 import { eq, and, gte, lte, desc, asc, sql, or, ilike } from "drizzle-orm";
@@ -16,6 +16,28 @@ export interface BillFilters {
   search?: string;
   page?: number;
   limit?: number;
+}
+
+// Make sure the category/vendor referenced by a bill belong to this user
+async function assertOwnsCategoryAndVendor(
+  userId: string,
+  categoryId?: string,
+  vendorId?: string | null
+) {
+  if (categoryId) {
+    const category = await db.query.categories.findFirst({
+      where: and(eq(categories.id, categoryId), eq(categories.userId, userId)),
+      columns: { id: true },
+    });
+    if (!category) throw new Error("Category not found");
+  }
+  if (vendorId) {
+    const vendor = await db.query.vendors.findFirst({
+      where: and(eq(vendors.id, vendorId), eq(vendors.userId, userId)),
+      columns: { id: true },
+    });
+    if (!vendor) throw new Error("Vendor not found");
+  }
 }
 
 export async function getBills(filters: BillFilters = {}) {
@@ -98,6 +120,7 @@ export async function createBill(data: {
 }) {
   const user = await getCurrentUser();
   const validated = billSchema.parse(data);
+  await assertOwnsCategoryAndVendor(user.id, validated.categoryId, validated.vendorId);
 
   const [bill] = await db
     .insert(bills)
@@ -105,7 +128,7 @@ export async function createBill(data: {
       userId: user.id,
       categoryId: validated.categoryId,
       vendorId: validated.vendorId || null,
-      invoiceNumber: data.invoiceNumber || null,
+      invoiceNumber: validated.invoiceNumber || null,
       amount: validated.amount,
       note: validated.note,
       imageUrl: validated.imageUrl,
@@ -140,6 +163,10 @@ export async function updateBill(
   }>
 ) {
   const user = await getCurrentUser();
+  // Validate only the fields being changed (the image is handled separately below)
+  const { imageUrl: _image, ...rest } = data;
+  billSchema.omit({ imageUrl: true }).partial().parse(rest);
+  await assertOwnsCategoryAndVendor(user.id, data.categoryId, data.vendorId);
 
   const updateData: Record<string, any> = { updatedAt: new Date() };
 
@@ -148,7 +175,11 @@ export async function updateBill(
   if (data.invoiceNumber !== undefined) updateData.invoiceNumber = data.invoiceNumber;
   if (data.amount) updateData.amount = data.amount;
   if (data.note !== undefined) updateData.note = data.note;
-  if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;
+  // Only overwrite the stored image with a new upload (data: URL) or an explicit removal (null).
+  // Anything else (e.g. the "has_image" flag or a /api/bills/image preview URL) means "unchanged".
+  if (data.imageUrl === null || data.imageUrl?.startsWith("data:")) {
+    updateData.imageUrl = data.imageUrl;
+  }
   if (data.receivedDate) updateData.receivedDate = new Date(data.receivedDate);
   if (data.dueDate !== undefined)
     updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;

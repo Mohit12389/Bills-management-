@@ -45,9 +45,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { StatusBadge, EmptyState, ImageUpload, ImageViewer, DateRangePicker, PaymentModeDialog } from "@/components/shared";
+import { StatusBadge, EmptyState, ImageUpload, ImageViewer, DateRangePicker, PaymentModeDialog, ConfirmDialog } from "@/components/shared";
 import { formatPaymentMode, formatBilledTo } from "@/components/shared/payment-mode-dialog";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, toDateInputValue } from "@/lib/utils";
 import { createVendor, updateVendor, deleteVendor } from "@/lib/actions/vendors";
 import { createBill, updateBill, toggleBillStatus, deleteBill } from "@/lib/actions/bills";
 
@@ -92,6 +92,9 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
   const [pendingPayBillId, setPendingPayBillId] = useState<string | null>(null);
   const [pendingPayAmount, setPendingPayAmount] = useState<string>("");
 
+  // ===== DELETE CONFIRMATION =====
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "bill" | "vendor"; id: string } | null>(null);
+
   // ===== EDIT TRACKING =====
   const [editingBillId, setEditingBillId] = useState<string | null>(null);
   const [editingVendorId, setEditingVendorId] = useState<string | null>(null);
@@ -110,7 +113,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
   const [billNote, setBillNote] = useState("");
   const [billImage, setBillImage] = useState<string | null>(null);
   const [billVendor, setBillVendor] = useState<string>("");
-  const [billDate, setBillDate] = useState(new Date().toISOString().split("T")[0]);
+  const [billDate, setBillDate] = useState(toDateInputValue());
   const [billDueDate, setBillDueDate] = useState("");
   const [billInvoiceNumber, setBillInvoiceNumber] = useState("");
   const [billBilledTo, setBillBilledTo] = useState<string>("");
@@ -122,7 +125,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
     setBillNote("");
     setBillImage(null);
     setBillVendor("");
-    setBillDate(new Date().toISOString().split("T")[0]);
+    setBillDate(toDateInputValue());
     setBillDueDate("");
     setBillBilledTo("");
     setEditingBillId(null);
@@ -147,7 +150,8 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
     setBillInvoiceNumber((bill as any).invoiceNumber || "");
     setBillAmount(bill.amount);
     setBillNote(bill.note || "");
-    setBillImage(bill.imageUrl || null);
+    // List data only carries a "has_image" flag — preview the real image via the API route
+    setBillImage(bill.imageUrl ? `/api/bills/image/${bill.id}` : null);
     setBillVendor(bill.vendor?.id || "");
     setBillDate(formatDateForInput(bill.receivedDate));
     setBillDueDate(formatDateForInput(bill.dueDate));
@@ -323,7 +327,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
         amount: bill.amount,
         note: bill.note || null,
         imageUrl: null,
-        receivedDate: new Date().toISOString().split("T")[0],
+        receivedDate: toDateInputValue(),
         dueDate: null,
         billedTo: (bill.billedTo as any) || null,
         invoiceNumber: bill.invoiceNumber || null,
@@ -509,7 +513,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-destructive"
-                              onClick={() => handleDeleteBill(bill.id)}
+                              onClick={() => setDeleteTarget({ type: "bill", id: bill.id })}
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
                               Delete
@@ -615,7 +619,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
-                            onClick={() => handleDeleteVendor(vendor.id)}
+                            onClick={() => setDeleteTarget({ type: "vendor", id: vendor.id })}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
@@ -860,6 +864,24 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
           title={`${category.name} - Bill`}
         />
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title={deleteTarget?.type === "vendor" ? "Delete this vendor?" : "Delete this bill?"}
+        description={
+          deleteTarget?.type === "vendor"
+            ? "The vendor will be removed. Their bills are kept but will show \"No vendor\"."
+            : "This permanently deletes the bill and its image. This cannot be undone."
+        }
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => {
+          if (deleteTarget?.type === "vendor") handleDeleteVendor(deleteTarget.id);
+          else if (deleteTarget) handleDeleteBill(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
 
       {/* Payment Mode Dialog */}
       <PaymentModeDialog

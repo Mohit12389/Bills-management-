@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StatCard, DateRangePicker } from "@/components/shared";
 import { Progress } from "@/components/ui/progress";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, toDateInputValue } from "@/lib/utils";
 import { exportToCSV, exportToPrintablePDF } from "@/lib/export-report";
 
 interface BillForStats {
@@ -334,25 +334,25 @@ export function StatsContent({
           { label: "This Month", action: () => {
             const now = new Date();
             setDateFrom(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`);
-            setDateTo(now.toISOString().split("T")[0]);
+            setDateTo(toDateInputValue(now));
           }},
           { label: "Last Month", action: () => {
             const now = new Date();
             const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
             const end = new Date(now.getFullYear(), now.getMonth(), 0);
-            setDateFrom(start.toISOString().split("T")[0]);
-            setDateTo(end.toISOString().split("T")[0]);
+            setDateFrom(toDateInputValue(start));
+            setDateTo(toDateInputValue(end));
           }},
           { label: "Last 3 Months", action: () => {
             const now = new Date();
             const start = new Date(now.getFullYear(), now.getMonth() - 3, 1);
-            setDateFrom(start.toISOString().split("T")[0]);
-            setDateTo(now.toISOString().split("T")[0]);
+            setDateFrom(toDateInputValue(start));
+            setDateTo(toDateInputValue(now));
           }},
           { label: "This Year", action: () => {
             const now = new Date();
             setDateFrom(`${now.getFullYear()}-01-01`);
-            setDateTo(now.toISOString().split("T")[0]);
+            setDateTo(toDateInputValue(now));
           }},
           { label: "All Time", action: () => { setDateFrom(""); setDateTo(""); }},
         ].map((preset) => (

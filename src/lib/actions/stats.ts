@@ -124,6 +124,10 @@ export async function getStatsData(filters: StatsFilters = {}) {
   const allBills = await db.query.bills.findMany({
     where: and(...conditions),
     columns: billColumnsNoImage,
+    // Check for an image in the DB without transferring the base64 data
+    extras: (table, { sql }) => ({
+      hasImage: sql<boolean>`${table.imageUrl} is not null`.as("has_image"),
+    }),
     with: { category: true, vendor: true },
     orderBy: [desc(bills.receivedDate)],
   });
@@ -195,7 +199,7 @@ export async function getStatsData(filters: StatsFilters = {}) {
       status: b.status,
       note: b.note,
       invoiceNumber: b.invoiceNumber || null,
-      imageUrl: "has_image", // flag only — actual image via /api/bills/image/[id]
+      imageUrl: b.hasImage ? "has_image" : null, // flag only — actual image via /api/bills/image/[id]
       paymentMode: b.paymentMode || null,
       billedTo: b.billedTo || null,
       receivedDate: b.receivedDate,

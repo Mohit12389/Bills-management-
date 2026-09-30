@@ -60,6 +60,7 @@ export function CategoriesContent({
   const [formName, setFormName] = useState("");
   const [formColor, setFormColor] = useState<string>(CATEGORY_COLORS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<CategoryWithStats | null>(null);
 
   const openCreateDialog = () => {
     setEditingCategory(null);
@@ -189,7 +190,7 @@ export function CategoriesContent({
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive"
-                        onClick={() => handleDelete(cat.id)}
+                        onClick={() => setDeleteTarget(cat)}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete
@@ -303,6 +304,19 @@ export function CategoriesContent({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title={`Delete "${deleteTarget?.name}"?`}
+        description={`This also permanently deletes its ${deleteTarget?.vendorCount ?? 0} vendors and ${deleteTarget?.totalBills ?? 0} bills (with images). This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => {
+          if (deleteTarget) handleDelete(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
     </>
   );
 }

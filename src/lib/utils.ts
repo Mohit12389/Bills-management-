@@ -22,6 +22,13 @@ export function formatDate(date: Date | string | null): string {
   return format(d, "dd MMM yyyy");
 }
 
+// yyyy-MM-dd in the user's local timezone (for <input type="date">).
+// Don't use toISOString() for this — it gives the UTC date, which is
+// yesterday in India between 00:00 and 05:30.
+export function toDateInputValue(date: Date = new Date()): string {
+  return format(date, "yyyy-MM-dd");
+}
+
 export function formatDateShort(date: Date | string | null): string {
   if (!date) return "—";
   const d = typeof date === "string" ? new Date(date) : date;

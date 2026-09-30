@@ -19,6 +19,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ImageUpload } from "@/components/shared";
 import { createBill } from "@/lib/actions/bills";
+import { toDateInputValue } from "@/lib/utils";
 
 interface Category {
   id: string;
@@ -48,9 +49,7 @@ export function NewBillForm({
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [receivedDate, setReceivedDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [receivedDate, setReceivedDate] = useState(toDateInputValue());
   const [dueDate, setDueDate] = useState("");
   const [recurring, setRecurring] = useState<string>("none");
   const [billedTo, setBilledTo] = useState<string>("");

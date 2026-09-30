@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { bills } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { createHash } from "crypto";
 
 export async function GET(
   request: NextRequest,
@@ -34,6 +35,17 @@ export async function GET(
 
     const imageData = bill.imageUrl;
 
+    // Public on purpose (exported PDFs link here for the CA), but not immutable:
+    // images can be replaced, so browsers must revalidate using the ETag.
+    const etag = `"${createHash("sha1").update(imageData).digest("hex")}"`;
+    const cacheHeaders = {
+      ETag: etag,
+      "Cache-Control": "public, no-cache",
+    };
+    if (request.headers.get("if-none-match") === etag) {
+      return new NextResponse(null, { status: 304, headers: cacheHeaders });
+    }
+
     // Handle base64 data URL
     if (imageData.startsWith("data:")) {
       const matches = imageData.match(/^data:([^;]+);base64,(.+)$/);
@@ -51,17 +63,20 @@ export async function GET(
         headers: {
           "Content-Type": mimeType,
           "Content-Length": imageBuffer.length.toString(),
-          "Cache-Control": "public, max-age=31536000, immutable",
+          ...cacheHeaders,
         },
       });
     }
 
     // If it's a regular URL, redirect
-    return NextResponse.redirect(imageData);
+    if (/^https?:\/\//.test(imageData)) {
+      return NextResponse.redirect(imageData);
+    }
+
+    // Anything else (e.g. a "has_image" flag saved by the old edit bug) is not a real image
+    return new NextResponse("No image attached to this bill", { status: 404 });
   } catch (error: any) {
     console.error("Image serve error:", error);
-    return new NextResponse("Server error: " + (error?.message || "unknown"), {
-      status: 500,
-    });
+    return new NextResponse("Server error", { status: 500 });
   }
 }

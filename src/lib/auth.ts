@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -15,11 +15,27 @@ export async function getCurrentUser() {
     where: eq(users.clerkId, userId),
   });
 
-  if (!user) {
+  if (user) return user;
+
+  // Signed in with Clerk but no DB row (e.g. the user.created webhook failed).
+  // Create it now instead of redirecting a signed-in user back to /sign-in forever.
+  const clerkUser = await currentUser();
+  if (!clerkUser) {
     redirect("/sign-in");
   }
 
-  return user;
+  const [created] = await db
+    .insert(users)
+    .values({
+      clerkId: userId,
+      email: clerkUser.emailAddresses[0]?.emailAddress || "",
+      name: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || null,
+      imageUrl: clerkUser.imageUrl || null,
+    })
+    .onConflictDoUpdate({ target: users.clerkId, set: { updatedAt: new Date() } })
+    .returning();
+
+  return created;
 }
 
 export async function getClerkUserId(): Promise<string> {
