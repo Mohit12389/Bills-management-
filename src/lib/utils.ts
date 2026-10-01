@@ -74,3 +74,8 @@ export const CATEGORY_COLORS = [
   "#a855f7", // purple
   "#f43f5e", // rose
 ] as const;
+
+// A–Z by name, ignoring case ("apple" sits next to "Apple", not after "Zebra")
+export function sortByName<T extends { name: string }>(list: T[]): T[] {
+  return [...list].sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
+}

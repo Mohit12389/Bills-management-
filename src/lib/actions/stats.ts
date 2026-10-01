@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { bills, categories } from "@/db/schema";
 import { billColumnsNoImage, hasImageExtra } from "@/db/bill-columns";
 import { getCurrentUser } from "@/lib/auth";
+import { sortByName } from "@/lib/utils";
 import { eq, and, gte, lte, sql, desc, type SQL } from "drizzle-orm";
 
 export interface StatsFilters {
@@ -187,15 +188,19 @@ export async function getStatsData(filters: StatsFilters = {}) {
         ? { id: b.vendor.id, name: b.vendor.name }
         : null,
     })),
-    categories: Array.from(categoryTotals.entries()).map(([id, cat]) => ({
-      id,
-      name: cat.name,
-      color: cat.color,
-    })),
-    vendors: Array.from(vendorTotals.entries()).map(([id, v]) => ({
-      id,
-      name: v.name,
-      category: v.category,
-    })),
+    categories: sortByName(
+      Array.from(categoryTotals.entries()).map(([id, cat]) => ({
+        id,
+        name: cat.name,
+        color: cat.color,
+      }))
+    ),
+    vendors: sortByName(
+      Array.from(vendorTotals.entries()).map(([id, v]) => ({
+        id,
+        name: v.name,
+        category: v.category,
+      }))
+    ),
   };
 }

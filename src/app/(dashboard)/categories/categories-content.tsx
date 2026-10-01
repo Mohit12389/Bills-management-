@@ -30,7 +30,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState, ConfirmDialog } from "@/components/shared";
-import { formatCurrency, CATEGORY_COLORS, CATEGORY_ICONS } from "@/lib/utils";
+import { formatCurrency, sortByName, CATEGORY_COLORS, CATEGORY_ICONS } from "@/lib/utils";
 import {
   createCategory,
   updateCategory,
@@ -48,9 +48,6 @@ interface CategoryWithStats {
   paidAmount: number;
   vendorCount: number;
 }
-
-const sortByName = (list: CategoryWithStats[]) =>
-  [...list].sort((a, b) => a.name.localeCompare(b.name));
 
 export function CategoriesContent({
   initialCategories,

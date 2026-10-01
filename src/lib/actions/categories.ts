@@ -7,16 +7,16 @@ import { getCurrentUser } from "@/lib/auth";
 import { categorySchema } from "@/lib/validations";
 import { eq, and, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { sortByName } from "@/lib/utils";
 
 export async function getCategories() {
   const user = await getCurrentUser();
 
   const result = await db.query.categories.findMany({
     where: eq(categories.userId, user.id),
-    orderBy: (categories, { asc }) => [asc(categories.name)],
   });
 
-  return result;
+  return sortByName(result);
 }
 
 export async function getCategoriesWithStats() {
@@ -26,7 +26,6 @@ export async function getCategoriesWithStats() {
   const [cats, billTotals, vendorCounts] = await Promise.all([
     db.query.categories.findMany({
       where: eq(categories.userId, user.id),
-      orderBy: (categories, { asc }) => [asc(categories.name)],
     }),
     db
       .select({
@@ -52,7 +51,7 @@ export async function getCategoriesWithStats() {
   const totalsByCategory = new Map(billTotals.map((t) => [t.categoryId, t]));
   const vendorsByCategory = new Map(vendorCounts.map((v) => [v.categoryId, v.vendorCount]));
 
-  return cats.map((cat) => {
+  return sortByName(cats).map((cat) => {
     const totals = totalsByCategory.get(cat.id);
     return {
       ...cat,
@@ -88,6 +87,7 @@ export async function getCategoryById(id: string) {
 
   return {
     ...result,
+    vendors: sortByName(result.vendors),
     bills: result.bills.map(({ hasImage, ...b }) => ({
       ...b,
       imageUrl: hasImage ? "has_image" : null,

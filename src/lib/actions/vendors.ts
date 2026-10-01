@@ -6,15 +6,17 @@ import { getCurrentUser } from "@/lib/auth";
 import { vendorSchema } from "@/lib/validations";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { sortByName } from "@/lib/utils";
 
 export async function getAllVendors() {
   const user = await getCurrentUser();
 
-  return db.query.vendors.findMany({
+  const result = await db.query.vendors.findMany({
     where: eq(vendors.userId, user.id),
     with: { category: true },
-    orderBy: (vendors, { asc }) => [asc(vendors.name)],
   });
+
+  return sortByName(result);
 }
 
 export async function createVendor(data: {
