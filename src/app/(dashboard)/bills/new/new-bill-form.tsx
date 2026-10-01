@@ -51,7 +51,6 @@ export function NewBillForm({
   const [imageKey, setImageKey] = useState<string | null>(null);
   const [receivedDate, setReceivedDate] = useState(toDateInputValue());
   const [dueDate, setDueDate] = useState("");
-  const [recurring, setRecurring] = useState<string>("none");
   const [billedTo, setBilledTo] = useState<string>("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
 
@@ -77,7 +76,6 @@ export function NewBillForm({
         imageKey,
         receivedDate,
         dueDate: dueDate || null,
-        isRecurring: recurring as any,
         billedTo: (billedTo as any) || null,
         invoiceNumber: invoiceNumber || null,
       });
@@ -217,22 +215,6 @@ export function NewBillForm({
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
-          </div>
-
-          {/* Recurring */}
-          <div className="form-group">
-            <Label>Recurring</Label>
-            <Select value={recurring} onValueChange={setRecurring}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">One-time</SelectItem>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="weekly">Weekly</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Note */}

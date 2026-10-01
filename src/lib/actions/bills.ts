@@ -125,7 +125,6 @@ export async function createBill(data: {
   imageKey?: string | null;
   receivedDate: string;
   dueDate?: string | null;
-  isRecurring?: "none" | "daily" | "weekly" | "monthly";
   billedTo?: "anchal_sweets" | "anchal_caterers" | null;
 }) {
   const user = await getCurrentUser();
@@ -147,7 +146,6 @@ export async function createBill(data: {
       imageKey: validated.imageKey || null,
       receivedDate: new Date(validated.receivedDate),
       dueDate: validated.dueDate ? new Date(validated.dueDate) : null,
-      isRecurring: validated.isRecurring,
       billedTo: validated.billedTo || null,
       status: "unpaid",
     })
@@ -172,7 +170,6 @@ export async function updateBill(
     imageKey: string | null;
     receivedDate: string;
     dueDate: string | null;
-    isRecurring: "none" | "daily" | "weekly" | "monthly";
     billedTo: "anchal_sweets" | "anchal_caterers" | null;
   }>
 ) {
@@ -209,7 +206,6 @@ export async function updateBill(
   if (data.receivedDate) updateData.receivedDate = new Date(data.receivedDate);
   if (data.dueDate !== undefined)
     updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
-  if (data.isRecurring) updateData.isRecurring = data.isRecurring;
   if (data.billedTo !== undefined) updateData.billedTo = data.billedTo;
 
   const [bill] = await db

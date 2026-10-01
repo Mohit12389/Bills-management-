@@ -98,6 +98,8 @@ export const bills = pgTable("bills", {
   receivedDate: timestamp("received_date").notNull(),
   paidDate: timestamp("paid_date"),
   dueDate: timestamp("due_date"),
+  // No longer used by the app — kept only until it's dropped in a follow-up migration
+  // (dropping it in the same deploy would break the old code still serving requests)
   isRecurring: recurringTypeEnum("is_recurring").default("none").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

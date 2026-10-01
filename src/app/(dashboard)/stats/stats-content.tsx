@@ -454,33 +454,7 @@ export function StatsContent({
             <CardTitle className="text-base">Top Vendors by Spend</CardTitle>
           </CardHeader>
           <CardContent className="px-0">
-            {/* Phones: one card per vendor — a 5-column table can't fit */}
-            <div className="divide-y border-t sm:hidden">
-              {computed.vendorBreakdown.map((vendor, i) => {
-                const percent = computed.totalAmount > 0 ? Math.round((vendor.total / computed.totalAmount) * 100) : 0;
-                return (
-                  <div key={i} className="space-y-2 px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="break-words text-sm font-medium">{vendor.name}</p>
-                        <p className="text-xs text-muted-foreground">{vendor.category}</p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-sm font-semibold tabular-nums">{formatCurrency(vendor.total)}</p>
-                        {vendor.unpaid > 0 && (
-                          <p className="text-xs tabular-nums text-amber-600">{formatCurrency(vendor.unpaid)} unpaid</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Progress value={percent} className="h-1.5" />
-                      <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{percent}%</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="hidden overflow-x-auto sm:block">
+            <div className="overflow-x-auto">
               <table className="data-table">
                 <thead>
                   <tr>

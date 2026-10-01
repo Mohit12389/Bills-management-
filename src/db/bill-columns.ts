@@ -20,7 +20,6 @@ export const billColumnsNoImage = {
   receivedDate: true,
   paidDate: true,
   dueDate: true,
-  isRecurring: true,
   createdAt: true,
   updatedAt: true,
 } as const;
