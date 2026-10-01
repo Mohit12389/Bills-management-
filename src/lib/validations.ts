@@ -29,7 +29,6 @@ export const billSchema = z.object({
       message: "Amount must be a positive number",
     }),
   note: z.string().max(500).optional().nullable(),
-  imageUrl: z.string().optional().nullable(),
   imageKey: z.string().max(200).optional().nullable(),
   receivedDate: z.string().min(1, "Received date is required"),
   dueDate: z.string().optional().nullable(),
@@ -37,22 +36,3 @@ export const billSchema = z.object({
   billedTo: z.enum(["anchal_sweets", "anchal_caterers", "anchal_caterers_original"]).optional().nullable(),
   invoiceNumber: z.string().max(100).optional().nullable(),
 });
-
-export const billUpdateSchema = billSchema.partial().extend({
-  id: z.string().uuid(),
-});
-
-export const billStatusSchema = z.object({
-  id: z.string().uuid(),
-  status: z.enum(["paid", "unpaid"]),
-});
-
-export const dateRangeSchema = z.object({
-  from: z.string().optional(),
-  to: z.string().optional(),
-});
-
-export type CategoryFormValues = z.infer<typeof categorySchema>;
-export type VendorFormValues = z.infer<typeof vendorSchema>;
-export type BillFormValues = z.infer<typeof billSchema>;
-export type BillStatusValues = z.infer<typeof billStatusSchema>;

@@ -40,10 +40,3 @@ export const getCurrentUser = cache(async function getCurrentUser() {
   return created;
 });
 
-export async function getClerkUserId(): Promise<string> {
-  const { userId } = auth();
-  if (!userId) {
-    redirect("/sign-in");
-  }
-  return userId;
-}

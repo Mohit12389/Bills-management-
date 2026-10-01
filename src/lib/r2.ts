@@ -35,7 +35,7 @@ const EXTENSIONS: Record<string, string> = {
 };
 
 // Keys are namespaced per user so a user can only attach their own uploads
-export function billImagePrefix(userId: string) {
+function billImagePrefix(userId: string) {
   return `bills/${userId}/`;
 }
 

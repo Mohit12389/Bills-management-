@@ -89,8 +89,6 @@ export const bills = pgTable("bills", {
     .references(() => vendors.id, { onDelete: "set null" }),
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
   note: text("note"),
-  // Legacy: base64 data URL. Being replaced by imageKey (Cloudflare R2); see scripts/migrate-images-to-r2.ts
-  imageUrl: text("image_url"),
   // R2 object key, e.g. bills/<userId>/<uuid>.jpg — the image itself lives in the private R2 bucket
   imageKey: text("image_key"),
   status: billStatusEnum("status").default("unpaid").notNull(),

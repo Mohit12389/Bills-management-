@@ -105,19 +105,6 @@ export async function getBills(filters: BillFilters = {}) {
   }));
 }
 
-export async function getBillById(id: string) {
-  const user = await getCurrentUser();
-
-  return db.query.bills.findFirst({
-    where: and(eq(bills.id, id), eq(bills.userId, user.id)),
-    columns: billColumnsNoImage,
-    with: {
-      category: true,
-      vendor: true,
-    },
-  });
-}
-
 export async function createBill(data: {
   categoryId: string;
   vendorId?: string | null;
@@ -207,7 +194,6 @@ export async function updateBill(
   if (data.note !== undefined) updateData.note = data.note;
   if (imageChanged) {
     updateData.imageKey = imageKey;
-    updateData.imageUrl = null; // drop any legacy base64 copy too
   }
   if (data.receivedDate) updateData.receivedDate = new Date(data.receivedDate);
   if (data.dueDate !== undefined)

@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { format, formatDistanceToNow, isAfter } from "date-fns";
+import { format, isAfter } from "date-fns";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -29,32 +29,10 @@ export function toDateInputValue(date: Date = new Date()): string {
   return format(date, "yyyy-MM-dd");
 }
 
-export function formatDateShort(date: Date | string | null): string {
-  if (!date) return "—";
-  const d = typeof date === "string" ? new Date(date) : date;
-  return format(d, "dd/MM/yy");
-}
-
-export function formatRelativeDate(date: Date | string | null): string {
-  if (!date) return "—";
-  const d = typeof date === "string" ? new Date(date) : date;
-  return formatDistanceToNow(d, { addSuffix: true });
-}
-
 export function isOverdue(dueDate: Date | string | null, status: string): boolean {
   if (!dueDate || status === "paid") return false;
   const d = typeof dueDate === "string" ? new Date(dueDate) : dueDate;
   return isAfter(new Date(), d);
-}
-
-export function getStatusColor(status: string): string {
-  return status === "paid" ? "success" : "warning";
-}
-
-export function compressImageSize(sizeInBytes: number): string {
-  if (sizeInBytes < 1024) return `${sizeInBytes} B`;
-  if (sizeInBytes < 1024 * 1024) return `${(sizeInBytes / 1024).toFixed(1)} KB`;
-  return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 // Category icon options
