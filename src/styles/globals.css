@@ -68,8 +68,41 @@
     @apply border-border;
   }
 
+  html {
+    /* Stop iOS Safari from inflating text when the phone is rotated */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    /* Nothing should ever make the page scroll sideways on a phone */
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* iOS Safari zooms the whole page into any field with text under 16px and
+     doesn't zoom back out — the main cause of pages looking "out of proportion" */
+  @media (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  /* iOS date/time fields ignore width:100% and push grids wider than the screen */
+  input[type="date"],
+  input[type="time"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+  }
+
+  input[type="date"]::-webkit-date-and-time-value,
+  input[type="time"]::-webkit-date-and-time-value {
+    text-align: left;
+    margin: 0;
   }
 
   h1,
@@ -82,15 +115,32 @@
 @layer components {
   /* Page containers */
   .page-container {
-    @apply mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8;
+    @apply mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8;
+    /* Keep clear of the notch when an iPhone is held sideways */
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  @media (min-width: 640px) {
+    .page-container {
+      padding-left: max(1.5rem, env(safe-area-inset-left));
+      padding-right: max(1.5rem, env(safe-area-inset-right));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-container {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
   }
 
   .page-header {
-    @apply mb-8 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between;
+    @apply mb-5 flex sm:mb-8 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between;
   }
 
   .page-title {
-    @apply text-2xl font-bold sm:text-3xl;
+    @apply break-words text-2xl font-bold sm:text-3xl;
   }
 
   .page-description {
@@ -103,7 +153,7 @@
   }
 
   .stat-card-value {
-    @apply text-2xl font-bold tracking-tight sm:text-3xl;
+    @apply break-words text-lg font-bold tabular-nums tracking-tight sm:text-2xl lg:text-3xl;
   }
 
   .stat-card-label {
@@ -186,10 +236,14 @@ animation: shimmer 2s infinite;
   /* Mobile bottom nav */
   .mobile-nav {
     @apply fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur-md md:hidden;
+    /* Sit above the iPhone home indicator instead of under it */
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   .mobile-nav-item {
-    @apply flex flex-col items-center gap-0.5 py-2 text-xs text-muted-foreground transition-colors;
+    @apply flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium text-muted-foreground transition-colors;
   }
 
   .mobile-nav-item.active {

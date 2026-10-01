@@ -238,7 +238,7 @@ export function StatsContent({
       </div>
 
       {/* ===== FILTERS ROW ===== */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {/* Category Filter */}
         <div className="space-y-1.5">
           <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -298,7 +298,7 @@ export function StatsContent({
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9"
           />
         </div>
 
@@ -311,7 +311,7 @@ export function StatsContent({
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9"
           />
         </div>
       </div>
@@ -403,17 +403,17 @@ export function StatsContent({
                     outerRadius={90}
                   />
                 </div>
-                <div className="flex-1 space-y-3">
+                <div className="w-full flex-1 space-y-3">
                   {computed.categoryPieData.map((cat, i) => {
                     const percent = computed.totalAmount > 0 ? Math.round((cat.value / computed.totalAmount) * 100) : 0;
                     return (
                       <div key={i} className="space-y-1">
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="category-dot" style={{ backgroundColor: cat.color }} />
-                            <span>{cat.name}</span>
+                        <div className="flex items-center justify-between gap-3 text-sm">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="category-dot shrink-0" style={{ backgroundColor: cat.color }} />
+                            <span className="truncate">{cat.name}</span>
                           </div>
-                          <span className="font-semibold tabular-nums">{percent}%</span>
+                          <span className="shrink-0 font-semibold tabular-nums">{percent}%</span>
                         </div>
                         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                           <div className="h-full rounded-full transition-all" style={{ width: `${percent}%`, backgroundColor: cat.color }} />
@@ -454,7 +454,33 @@ export function StatsContent({
             <CardTitle className="text-base">Top Vendors by Spend</CardTitle>
           </CardHeader>
           <CardContent className="px-0">
-            <div className="overflow-x-auto">
+            {/* Phones: one card per vendor — a 5-column table can't fit */}
+            <div className="divide-y border-t sm:hidden">
+              {computed.vendorBreakdown.map((vendor, i) => {
+                const percent = computed.totalAmount > 0 ? Math.round((vendor.total / computed.totalAmount) * 100) : 0;
+                return (
+                  <div key={i} className="space-y-2 px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="break-words text-sm font-medium">{vendor.name}</p>
+                        <p className="text-xs text-muted-foreground">{vendor.category}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-semibold tabular-nums">{formatCurrency(vendor.total)}</p>
+                        {vendor.unpaid > 0 && (
+                          <p className="text-xs tabular-nums text-amber-600">{formatCurrency(vendor.unpaid)} unpaid</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Progress value={percent} className="h-1.5" />
+                      <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{percent}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="hidden overflow-x-auto sm:block">
               <table className="data-table">
                 <thead>
                   <tr>

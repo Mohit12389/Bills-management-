@@ -22,7 +22,7 @@ export function ImageViewer({ open, onClose, imageUrl, title }: ImageViewerProps
         <DialogHeader>
           <DialogTitle>{title || "Bill Image"}</DialogTitle>
         </DialogHeader>
-        <div className="relative max-h-[70vh] overflow-auto rounded-lg">
+        <div className="relative max-h-[70vh] max-h-[70dvh] overflow-auto rounded-lg">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imageUrl}

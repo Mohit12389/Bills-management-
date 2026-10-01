@@ -498,16 +498,17 @@ export function BillsContent({
         {/* Main content */}
         <div className="lg:col-span-3 lg:order-1 space-y-3">
           {/* Search + Status filters */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[200px]">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative w-full sm:flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search by note, category, vendor, amount..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 pl-9 text-sm"
+                className="h-10 pl-9 text-sm sm:h-9"
               />
             </div>
+            <div className="grid grid-cols-3 gap-2 sm:flex">
             {(["all", "paid", "unpaid"] as const).map((s) => {
               const count = statusCounts[s];
               return (
@@ -522,6 +523,7 @@ export function BillsContent({
                 </Button>
               );
             })}
+            </div>
           </div>
 
           {/* Bulk actions bar */}
@@ -533,7 +535,7 @@ export function BillsContent({
                   ({selectedPaidCount} paid, {selectedUnpaidCount} unpaid)
                 </span>
               </div>
-              <div className="ml-auto flex gap-1.5">
+              <div className="flex w-full flex-wrap gap-1.5 sm:ml-auto sm:w-auto">
                 <Button size="sm" variant="outline" onClick={handleBulkPaidClick} className="gap-1 text-xs">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                   Mark Paid
@@ -571,28 +573,34 @@ export function BillsContent({
                 <span className="flex-1 text-xs font-semibold uppercase text-muted-foreground">Details</span>
                 <span className="w-20 text-xs font-semibold uppercase text-muted-foreground">Status</span>
                 <span className="w-28 text-right text-xs font-semibold uppercase text-muted-foreground">Amount</span>
-                <span className="w-20" />
+                <span className="w-8" />
               </div>
 
               {visibleBills.map((bill) => (
                 <div
                   key={bill.id}
-                  className="flex items-center gap-3 p-3 transition-colors hover:bg-muted/50 sm:gap-4 sm:px-4"
+                  className="flex items-start gap-3 p-3 transition-colors hover:bg-muted/50 sm:items-center sm:gap-4 sm:px-4"
                 >
-                  <Checkbox
-                    checked={selectedIds.has(bill.id)}
-                    onCheckedChange={() => toggleSelect(bill.id)}
-                  />
+                  {/* Bigger tap area around the checkbox on phones */}
+                  <label className="-m-2 flex shrink-0 cursor-pointer p-2 sm:m-0 sm:p-0">
+                    <Checkbox
+                      checked={selectedIds.has(bill.id)}
+                      onCheckedChange={() => toggleSelect(bill.id)}
+                      className="mt-0.5 h-5 w-5 sm:mt-0 sm:h-4 sm:w-4"
+                    />
+                  </label>
 
+                  {/* Thumbnail — desktop only; phones get a "Photo" chip under the details */}
                   {bill.imageUrl ? (
-  <div
-    className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-md border bg-emerald-50 sm:h-16 sm:w-16"
-    onClick={() => setViewingImage(`/api/bills/image/${bill.id}`)}
-  >
-    <ImageIcon className="h-5 w-5 text-emerald-600" />
-  </div>
+                    <button
+                      type="button"
+                      className="hidden h-16 w-16 shrink-0 cursor-pointer items-center justify-center rounded-md border bg-emerald-50 sm:flex"
+                      onClick={() => setViewingImage(`/api/bills/image/${bill.id}`)}
+                    >
+                      <ImageIcon className="h-5 w-5 text-emerald-600" />
+                    </button>
                   ) : (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-md border bg-muted sm:h-16 sm:w-16">
+                    <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-md border bg-muted sm:flex">
                       <ImageIcon className="h-5 w-5 text-muted-foreground/50" />
                     </div>
                   )}
@@ -605,11 +613,14 @@ export function BillsContent({
                           style={{ backgroundColor: bill.category.color || "#6366f1" }}
                         />
                       )}
-                      <span className="truncate text-sm font-medium">
+                      <span className="min-w-0 truncate text-sm font-medium">
                         {bill.category?.name || "Uncategorized"}
                       </span>
+                      <span className="ml-auto shrink-0 pl-2 text-sm font-bold tabular-nums sm:hidden">
+                        {formatCurrency(bill.amount)}
+                      </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="mt-0.5 break-words text-xs text-muted-foreground">
                       {bill.vendor?.name || "No vendor"} • {formatDate(bill.receivedDate)}
                       {bill.paidDate && ` • Paid ${formatDate(bill.paidDate)}`}
                       {bill.paymentMode && ` (${formatPaymentMode(bill.paymentMode)})`}
@@ -621,17 +632,32 @@ export function BillsContent({
                     {bill.note && (
                       <p className="mt-0.5 truncate text-xs text-muted-foreground/70">{bill.note}</p>
                     )}
+                    <div className="mt-2 flex items-center gap-2 sm:hidden">
+                      <StatusBadge status={bill.status} dueDate={bill.dueDate} />
+                      {bill.imageUrl && (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-full border bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
+                          onClick={() => setViewingImage(`/api/bills/image/${bill.id}`)}
+                        >
+                          <ImageIcon className="h-3 w-3" />
+                          Photo
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  <StatusBadge status={bill.status} dueDate={bill.dueDate} />
+                  <div className="hidden w-20 shrink-0 sm:block">
+                    <StatusBadge status={bill.status} dueDate={bill.dueDate} />
+                  </div>
 
-                  <span className="w-28 text-right text-sm font-bold tabular-nums">
+                  <span className="hidden w-28 shrink-0 text-right text-sm font-bold tabular-nums sm:block">
                     {formatCurrency(bill.amount)}
                   </span>
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                      <Button variant="ghost" size="icon" className="-mr-1 -mt-1 h-9 w-9 shrink-0 sm:m-0 sm:h-8 sm:w-8">
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -794,7 +820,7 @@ export function BillsContent({
 
       {/* ===== EDIT BILL DIALOG ===== */}
       <Dialog open={editBillOpen} onOpenChange={(open) => { setEditBillOpen(open); if (!open) setEditBillId(null); }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit Bill</DialogTitle>
           </DialogHeader>
@@ -803,6 +829,7 @@ export function BillsContent({
               <Label>Amount (₹) *</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 placeholder="0.00"
                 value={editAmount}

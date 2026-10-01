@@ -86,8 +86,8 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
       {/* Overdue Alert */}
       {stats.overdueCount > 0 && (
         <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30">
-          <AlertTriangle className="h-5 w-5 text-red-600" />
-          <div className="flex-1">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-red-600" />
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-red-800 dark:text-red-400">
               {stats.overdueCount} overdue bill{stats.overdueCount > 1 ? "s" : ""} totaling{" "}
               {formatCurrency(stats.overdueAmount)}
@@ -96,7 +96,7 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
               These bills have passed their due date
             </p>
           </div>
-          <Link href="/bills?status=unpaid">
+          <Link href="/bills?status=unpaid" className="shrink-0">
             <Button variant="outline" size="sm" className="border-red-300 text-red-700">
               View
             </Button>
@@ -124,15 +124,15 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
                 </div>
                 <div className="flex-1 space-y-2">
                   {stats.categoryBreakdown.map((cat, i) => (
-                    <div key={i} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
+                    <div key={i} className="flex items-center justify-between gap-3 text-sm">
+                      <div className="flex min-w-0 items-center gap-2">
                         <span
-                          className="category-dot"
+                          className="category-dot shrink-0"
                           style={{ backgroundColor: cat.color }}
                         />
                         <span className="truncate">{cat.name}</span>
                       </div>
-                      <span className="font-semibold tabular-nums">
+                      <span className="shrink-0 font-semibold tabular-nums">
                         {formatCurrency(cat.total)}
                       </span>
                     </div>
@@ -163,17 +163,17 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
                 {stats.recentBills.map((bill: any) => (
                   <div
                     key={bill.id}
-                    className="flex items-center justify-between rounded-lg border p-3"
+                    className="flex items-center justify-between gap-3 rounded-lg border p-3"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
                       <div
-                        className="h-2 w-2 rounded-full"
+                        className="h-2 w-2 shrink-0 rounded-full"
                         style={{
                           backgroundColor: bill.category?.color || "#6366f1",
                         }}
                       />
-                      <div>
-                        <p className="text-sm font-medium">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
                           {bill.category?.name || "Uncategorized"}
                         </p>
                         <p className="text-xs text-muted-foreground">
@@ -181,11 +181,11 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <StatusBadge status={bill.status} dueDate={bill.dueDate} />
+                    <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row-reverse sm:items-center sm:gap-3">
                       <span className="text-sm font-semibold tabular-nums">
                         {formatCurrency(bill.amount)}
                       </span>
+                      <StatusBadge status={bill.status} dueDate={bill.dueDate} />
                     </div>
                   </div>
                 ))}

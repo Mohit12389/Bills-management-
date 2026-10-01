@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 export function MobileHeader() {
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-card/95 px-4 py-3 backdrop-blur-md md:hidden">
+    <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-card/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md md:hidden">
       <div className="flex items-center gap-2.5">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
           <Store className="h-4 w-4 text-primary-foreground" />

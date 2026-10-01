@@ -6,7 +6,7 @@ interface PageShellProps {
 
 export function PageShell({ children }: PageShellProps) {
   return (
-    <main className="page-container pb-24 md:pb-6">
+    <main className="page-container pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
       {children}
     </main>
   );

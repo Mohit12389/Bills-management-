@@ -355,16 +355,16 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
     <>
       {/* Header */}
       <div className="page-header">
-        <div className="flex items-center gap-3">
-          <Link href="/categories">
+        <div className="flex min-w-0 items-center gap-3">
+          <Link href="/categories" className="shrink-0">
             <Button variant="ghost" size="icon" className="h-9 w-9">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span
-                className="category-dot"
+                className="category-dot shrink-0"
                 style={{ backgroundColor: category.color || "#6366f1" }}
               />
               <h1 className="page-title">{category.name}</h1>
@@ -374,14 +374,14 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex">
           <Button variant="outline" onClick={openAddVendor} className="gap-1.5">
             <Users className="h-4 w-4" />
-            <span className="hidden sm:inline">Add Vendor</span>
+            Add Vendor
           </Button>
           <Button onClick={openAddBill} className="gap-1.5">
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Add Bill</span>
+            Add Bill
           </Button>
         </div>
       </div>
@@ -433,31 +433,32 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                   {filteredBills.map((bill) => (
                     <div
                       key={bill.id}
-                      className="flex items-center gap-3 p-3 transition-colors hover:bg-muted/50 sm:gap-4 sm:p-4"
+                      className="flex items-start gap-3 p-3 transition-colors hover:bg-muted/50 sm:items-center sm:gap-4 sm:p-4"
                     >
                       {/* Bill image thumbnail */}
                         {bill.imageUrl ? (
-  <div
-    className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-md border bg-emerald-50 sm:h-16 sm:w-16"
-    onClick={() => setViewingImage(`/api/bills/image/${bill.id}`)}
-  >
-    <ImageIcon className="h-5 w-5 text-emerald-600" />
-  </div>
+                        <button
+                          type="button"
+                          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md border bg-emerald-50 sm:h-16 sm:w-16"
+                          onClick={() => setViewingImage(`/api/bills/image/${bill.id}`)}
+                        >
+                          <ImageIcon className="h-5 w-5 text-emerald-600" />
+                        </button>
                       ) : (
-                        <div className="flex h-12 w-12 items-center justify-center rounded-md border bg-muted sm:h-16 sm:w-16">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border bg-muted sm:h-16 sm:w-16">
                           <ImageIcon className="h-5 w-5 text-muted-foreground/50" />
                         </div>
                       )}
 
                       {/* Bill info */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span className="text-sm font-semibold tabular-nums">
                             {formatCurrency(bill.amount)}
                           </span>
                           <StatusBadge status={bill.status} dueDate={bill.dueDate} />
                         </div>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="mt-0.5 break-words text-xs text-muted-foreground">
                           {bill.vendor?.name || "No vendor"} •{" "}
                           Received {formatDate(bill.receivedDate)}
                           {bill.paidDate && ` • Paid ${formatDate(bill.paidDate)}`}
@@ -478,11 +479,11 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center gap-1">
+                      <div className="-mr-1 flex shrink-0 items-center gap-0.5 sm:mr-0 sm:gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 gap-1 text-xs"
+                          className="h-9 gap-1 px-2.5 text-xs sm:h-8 sm:px-3"
                           onClick={() => handleToggleStatus(bill.id, formatCurrency(bill.amount))}
                         >
                           {bill.status === "unpaid" ? (
@@ -499,7 +500,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8">
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -601,14 +602,14 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                     key={vendor.id}
                     className="group rounded-lg border bg-card p-4 transition-shadow hover:shadow-md"
                   >
-                    <div className="flex items-start justify-between">
-                      <h3 className="font-semibold">{vendor.name}</h3>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="min-w-0 break-words font-semibold">{vendor.name}</h3>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7"
+                            className="-mr-1 -mt-1 h-9 w-9 shrink-0 sm:h-7 sm:w-7"
                           >
                             <MoreVertical className="h-3.5 w-3.5" />
                           </Button>
@@ -689,6 +690,9 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
             <div className="form-group">
               <Label>Phone</Label>
               <Input
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
                 placeholder="Optional"
                 value={vendorPhone}
                 onChange={(e) => setVendorPhone(e.target.value)}
@@ -735,7 +739,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
           if (!open) resetBillForm();
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {editingBillId ? "Edit Bill" : `Add Bill to ${category.name}`}
@@ -746,6 +750,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
               <Label>Amount (₹) *</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 placeholder="0.00"
                 value={billAmount}

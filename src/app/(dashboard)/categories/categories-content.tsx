@@ -159,11 +159,11 @@ export function CategoriesContent({
                 style={{ backgroundColor: cat.color || "#6366f1" }}
               />
 
-              <div className="p-5">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
+              <div className="p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-3">
                     <div
-                      className="flex h-10 w-10 items-center justify-center rounded-lg"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
                       style={{
                         backgroundColor: `${cat.color || "#6366f1"}15`,
                         color: cat.color || "#6366f1",
@@ -171,8 +171,8 @@ export function CategoriesContent({
                     >
                       <FolderOpen className="h-5 w-5" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold">{cat.name}</h3>
+                    <div className="min-w-0">
+                      <h3 className="break-words font-semibold">{cat.name}</h3>
                       <p className="text-xs text-muted-foreground">
                         {cat.vendorCount} vendor{cat.vendorCount !== 1 ? "s" : ""} •{" "}
                         {cat.totalBills} bill{cat.totalBills !== 1 ? "s" : ""}
@@ -185,7 +185,7 @@ export function CategoriesContent({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="-mr-1 h-9 w-9 shrink-0 sm:mr-0 sm:h-8 sm:w-8"
                       >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
@@ -211,13 +211,13 @@ export function CategoriesContent({
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-muted-foreground">Total</p>
-                    <p className="text-lg font-bold tabular-nums">
+                    <p className="break-words text-base font-bold tabular-nums sm:text-lg">
                       {formatCurrency(cat.totalAmount)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-amber-600">Unpaid</p>
-                    <p className="text-lg font-bold tabular-nums text-amber-600">
+                    <p className="break-words text-base font-bold tabular-nums text-amber-600 sm:text-lg">
                       {formatCurrency(cat.unpaidAmount)}
                     </p>
                   </div>
@@ -250,7 +250,7 @@ export function CategoriesContent({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="mt-3 w-full gap-1 text-xs"
+                    className="mt-3 h-10 w-full gap-1 text-xs sm:h-9"
                   >
                     View Bills <ArrowRight className="h-3 w-3" />
                   </Button>
