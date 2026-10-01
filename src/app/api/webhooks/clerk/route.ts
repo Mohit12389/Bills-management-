@@ -4,7 +4,9 @@ import { WebhookEvent } from "@clerk/nextjs/server";
 import { db } from "@/db";
 import { bills, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
 import { deleteImages } from "@/lib/r2";
+import { userCacheTag } from "@/lib/auth";
 
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
@@ -90,6 +92,7 @@ export async function POST(req: Request) {
         await db.delete(users).where(eq(users.id, user.id));
         await deleteImages(userBills.map((b) => b.imageKey));
       }
+      revalidateTag(userCacheTag(id));
     }
   }
 

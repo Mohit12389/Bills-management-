@@ -6,7 +6,6 @@ import {
   DeleteObjectsCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { randomUUID } from "crypto";
 
 // Bill images live in a PRIVATE Cloudflare R2 bucket.
 // - Uploads: the browser posts to /api/bills/image-upload, which stores the file here
@@ -25,34 +24,12 @@ export const r2 = new S3Client({
   },
 });
 
-export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
-export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
-
-const EXTENSIONS: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-};
-
-// Keys are namespaced per user so a user can only attach their own uploads
-function billImagePrefix(userId: string) {
-  return `bills/${userId}/`;
-}
-
-export function isOwnBillImageKey(key: string, userId: string) {
-  return key.startsWith(billImagePrefix(userId)) && !key.includes("..");
-}
-
-export function newBillImageKey(userId: string, contentType: string) {
-  return `${billImagePrefix(userId)}${randomUUID()}.${EXTENSIONS[contentType] ?? "jpg"}`;
-}
-
 // Signed URL for viewing an image — created fresh on every click of a bill image link
 export function getViewUrl(key: string, expiresIn = 60 * 60) {
   return getSignedUrl(r2, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn });
 }
 
-// Server-side upload (used by the migration script)
+// Server-side upload (used by /api/bills/image-upload)
 export async function putImage(key: string, body: Buffer, contentType: string) {
   await r2.send(
     new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType })

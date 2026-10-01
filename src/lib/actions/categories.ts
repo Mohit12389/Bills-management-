@@ -7,7 +7,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { categorySchema } from "@/lib/validations";
 import { eq, and, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { deleteImages } from "@/lib/r2";
 
 export async function getCategories() {
   const user = await getCurrentUser();
@@ -152,7 +151,9 @@ export async function deleteCategory(id: string) {
     .where(and(eq(categories.id, id), eq(categories.userId, user.id)))
     .returning({ id: categories.id });
 
-  if (deleted.length > 0) {
+  if (deleted.length > 0 && categoryBills.some((b) => b.imageKey)) {
+    // Loaded only when needed, so ordinary page loads don't pay the AWS SDK's startup cost
+    const { deleteImages } = await import("@/lib/r2");
     await deleteImages(categoryBills.map((b) => b.imageKey));
   }
 

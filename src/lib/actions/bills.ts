@@ -7,7 +7,11 @@ import { getCurrentUser } from "@/lib/auth";
 import { billSchema } from "@/lib/validations";
 import { eq, and, gte, lte, desc, ilike, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { MAX_IMAGE_BYTES, deleteImages, getImageSize, isOwnBillImageKey } from "@/lib/r2";
+import { MAX_IMAGE_BYTES, isOwnBillImageKey } from "@/lib/bill-image-keys";
+
+// The R2 client (AWS S3 SDK) is loaded only when a photo is checked or deleted,
+// so ordinary page loads don't pay its startup cost.
+const loadR2 = () => import("@/lib/r2");
 
 export interface BillFilters {
   status?: "paid" | "unpaid" | "all";
@@ -45,10 +49,17 @@ async function assertOwnsCategoryAndVendor(
   if (vendorId && !vendor) throw new Error("Vendor not found");
 }
 
+async function deleteImagesOf(deleted: { imageKey: string | null }[]) {
+  if (!deleted.some((b) => b.imageKey)) return;
+  const { deleteImages } = await loadR2();
+  await deleteImages(deleted.map((b) => b.imageKey));
+}
+
 // An image key sent by the browser must be one of this user's own uploads, and the
 // upload must actually have finished — otherwise the bill would point at nothing.
 async function assertValidUploadedImage(userId: string, imageKey: string) {
   if (!isOwnBillImageKey(imageKey, userId)) throw new Error("Invalid image");
+  const { getImageSize } = await loadR2();
   const size = await getImageSize(imageKey);
   if (size === null || size > MAX_IMAGE_BYTES) throw new Error("Image upload not found");
 }
@@ -208,6 +219,7 @@ export async function updateBill(
     .returning({ id: bills.id });
 
   if (bill && existing?.imageKey && existing.imageKey !== imageKey) {
+    const { deleteImages } = await loadR2();
     await deleteImages([existing.imageKey]);
   }
 
@@ -292,7 +304,7 @@ export async function deleteBill(id: string) {
     .delete(bills)
     .where(and(eq(bills.id, id), eq(bills.userId, user.id)))
     .returning({ imageKey: bills.imageKey });
-  await deleteImages(deleted.map((b) => b.imageKey));
+  await deleteImagesOf(deleted);
 
   revalidatePath("/bills");
   revalidatePath("/dashboard");
@@ -310,7 +322,7 @@ export async function bulkDeleteBills(ids: string[]) {
     .delete(bills)
     .where(and(inArray(bills.id, ids), eq(bills.userId, user.id)))
     .returning({ imageKey: bills.imageKey });
-  await deleteImages(deleted.map((b) => b.imageKey));
+  await deleteImagesOf(deleted);
 
   revalidatePath("/bills");
   revalidatePath("/dashboard");

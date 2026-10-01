@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getCurrentUser } from "@/lib/auth";
-import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES, newBillImageKey, putImage } from "@/lib/r2";
+import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES, newBillImageKey } from "@/lib/bill-image-keys";
+import { putImage } from "@/lib/r2";
 
 // Bill photo upload. The browser sends the (already compressed) photo here and we store it
 // in R2. Uploading through our own server means the browser never talks to R2 directly,
