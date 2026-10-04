@@ -124,6 +124,9 @@ export function BillsContent({
   // Delete confirmation — "bulk" deletes the current selection
   const [deleteTarget, setDeleteTarget] = useState<string | "bulk" | null>(null);
 
+  // Paid bill waiting on "Mark as unpaid?" confirmation — un-paying wipes its payment details
+  const [unpayTarget, setUnpayTarget] = useState<string | null>(null);
+
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "unpaid">("all");
@@ -680,7 +683,7 @@ export function BillsContent({
                             <CreditCard className="mr-2 h-4 w-4 text-blue-600" />
                             Edit Payment Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleMarkUnpaid(bill.id)}>
+                          <DropdownMenuItem onClick={() => setUnpayTarget(bill.id)}>
                             <Clock className="mr-2 h-4 w-4 text-amber-600" />
                             Mark Unpaid
                           </DropdownMenuItem>
@@ -727,6 +730,18 @@ export function BillsContent({
           if (deleteTarget === "bulk") handleBulkDelete();
           else if (deleteTarget) handleDelete(deleteTarget);
           setDeleteTarget(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={unpayTarget !== null}
+        onOpenChange={(open) => { if (!open) setUnpayTarget(null); }}
+        title="Mark this bill as unpaid?"
+        description="Its paid date and payment mode will be cleared."
+        confirmLabel="Mark Unpaid"
+        onConfirm={() => {
+          if (unpayTarget) handleMarkUnpaid(unpayTarget);
+          setUnpayTarget(null);
         }}
       />
 

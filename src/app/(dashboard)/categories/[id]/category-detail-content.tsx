@@ -96,6 +96,8 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
 
   // ===== DELETE CONFIRMATION =====
   const [deleteTarget, setDeleteTarget] = useState<{ type: "bill" | "vendor"; id: string } | null>(null);
+  // Paid bill waiting on "Mark as unpaid?" confirmation — un-paying wipes its payment details
+  const [unpayTarget, setUnpayTarget] = useState<string | null>(null);
 
   // ===== EDIT TRACKING =====
   const [editingBillId, setEditingBillId] = useState<string | null>(null);
@@ -278,22 +280,19 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
     }
   };
 
-  const handleToggleStatus = async (billId: string, billAmount?: string) => {
-    const bill = category.bills.find((b) => b.id === billId);
-    if (!bill) return;
+  const handleMarkPaid = (billId: string, billAmount: string) => {
+    setPendingPayBillId(billId);
+    setPendingPayAmount(billAmount);
+    setPaymentModeOpen(true);
+  };
 
-    if (bill.status === "unpaid") {
-      setPendingPayBillId(billId);
-      setPendingPayAmount(billAmount || "");
-      setPaymentModeOpen(true);
-    } else {
-      try {
-        await toggleBillStatus(billId);
-        toast.success("Marked as unpaid");
-        router.refresh();
-      } catch (error) {
-        toast.error("Failed to update status");
-      }
+  const handleMarkUnpaid = async (billId: string) => {
+    try {
+      await toggleBillStatus(billId);
+      toast.success("Marked as unpaid");
+      router.refresh();
+    } catch (error) {
+      toast.error("Failed to update status");
     }
   };
 
@@ -476,28 +475,23 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
     {bill.note}
   </p>
 )}
+                        {/* Labelled so it reads as an action, not a second status badge.
+                            Paid bills are un-paid from the ⋮ menu instead (rare, and it needs a confirm). */}
+                        {bill.status === "unpaid" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 h-8 gap-1.5 text-xs"
+                            onClick={() => handleMarkPaid(bill.id, formatCurrency(bill.amount))}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                            Mark Paid
+                          </Button>
+                        )}
                       </div>
 
                       {/* Actions */}
-                      <div className="-mr-1 flex shrink-0 items-center gap-0.5 sm:mr-0 sm:gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-9 gap-1 px-2.5 text-xs sm:h-8 sm:px-3"
-                          onClick={() => handleToggleStatus(bill.id, formatCurrency(bill.amount))}
-                        >
-                          {bill.status === "unpaid" ? (
-                            <>
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                              <span className="hidden sm:inline">Mark Paid</span>
-                            </>
-                          ) : (
-                            <>
-                              <Clock className="h-3.5 w-3.5 text-amber-600" />
-                              <span className="hidden sm:inline">Mark Unpaid</span>
-                            </>
-                          )}
-                        </Button>
+                      <div className="-mr-1 shrink-0 sm:mr-0">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8">
@@ -513,6 +507,12 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
                               <Copy className="mr-2 h-4 w-4" />
                               Duplicate Bill
                             </DropdownMenuItem>
+                            {bill.status === "paid" && (
+                              <DropdownMenuItem onClick={() => setUnpayTarget(bill.id)}>
+                                <Clock className="mr-2 h-4 w-4 text-amber-600" />
+                                Mark Unpaid
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-destructive"
@@ -887,6 +887,18 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
           if (deleteTarget?.type === "vendor") handleDeleteVendor(deleteTarget.id);
           else if (deleteTarget) handleDeleteBill(deleteTarget.id);
           setDeleteTarget(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={unpayTarget !== null}
+        onOpenChange={(open) => { if (!open) setUnpayTarget(null); }}
+        title="Mark this bill as unpaid?"
+        description="Its paid date and payment mode will be cleared."
+        confirmLabel="Mark Unpaid"
+        onConfirm={() => {
+          if (unpayTarget) handleMarkUnpaid(unpayTarget);
+          setUnpayTarget(null);
         }}
       />
 
