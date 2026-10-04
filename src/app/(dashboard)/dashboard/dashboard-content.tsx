@@ -105,7 +105,7 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
       )}
 
       {/* Charts Row */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Category Pie Chart */}
         <Card className="animate-fade-in stagger-5">
           <CardHeader className="pb-2">
@@ -203,7 +203,7 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
       {stats.categoryBreakdown.length > 0 && (
         <div>
           <h2 className="mb-3 text-lg font-semibold">Category Summary</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {stats.categoryBreakdown.map((cat, i) => (
               <div
                 key={i}

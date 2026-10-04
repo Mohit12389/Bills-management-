@@ -9,7 +9,7 @@ export default function Loading() {
             <div key={i} className="h-24 rounded-lg bg-muted" />
           ))}
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="h-64 rounded-lg bg-muted" />
           <div className="h-64 rounded-lg bg-muted" />
         </div>

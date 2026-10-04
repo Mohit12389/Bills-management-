@@ -442,7 +442,7 @@ export function BillsContent({
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
         {/* ===== FILTERS SIDEBAR (shows at top on mobile, right side on desktop) ===== */}
         <div className={`space-y-4 ${showFilters ? "block" : "hidden"} lg:block lg:order-2`}>
           <div className="rounded-lg border bg-card p-4 space-y-3">

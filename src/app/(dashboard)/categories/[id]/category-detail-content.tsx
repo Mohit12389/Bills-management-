@@ -398,7 +398,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
 
         {/* ===== BILLS TAB ===== */}
         <TabsContent value="bills" className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
             <div className="lg:col-span-3">
               {/* Status filter */}
               <div className="flex flex-wrap gap-2 mb-4">
@@ -585,7 +585,7 @@ export function CategoryDetailContent({ category }: { category: CategoryDetail }
               onAction={openAddVendor}
             />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {category.vendors.map((vendor) => {
                 const vendorBills = category.bills.filter(
                   (b) => b.vendor?.id === vendor.id
